@@ -74,10 +74,13 @@ export async function GET() {
       curves,
       macro,
     });
-  } catch (err) {
+    } catch (err) {
     console.error("Error in /api/goldcurve:", err);
     return NextResponse.json(
-      { error: "Failed to load metals curve data" },
+      {
+        error: "Failed to load metals curve data",
+        detail: err?.message || String(err)
+      },
       { status: 500 }
     );
   } finally {
