@@ -18,26 +18,36 @@ export async function GET() {
               dollar_index,
               deficit_gdp_flag
        FROM v_metals_curve_today
-       WHERE metal IN ('GOLD', 'SILVER')
+       WHERE LOWER(metal) IN ('gold', 'silver')
        ORDER BY metal, tenor_months`
     );
 
     const today = todayResult.rows;
 
+    // If truly no rows, just return an empty payload instead of throwing.
     if (!today || today.length === 0) {
-      return NextResponse.json(
-        { error: "No rows in v_metals_curve_today" },
-        { status: 500 }
-      );
+      return NextResponse.json({
+        asOfDate: null,
+        priorDate: null,
+        curves: [],
+        macro: {
+          asOfDate: null,
+          real10y: null,
+          dollarIndex: null,
+          deficitFlag: null,
+          goldFrontMonth: null,
+        },
+      });
     }
 
     const asOfDate = today[0]?.as_of_date ?? null;
 
-    // Group by metal
+    // Group by metal (normalize to upper-case keys)
     const byMetal = { GOLD: [], SILVER: [] };
     for (const r of today) {
-      if (r.metal === "GOLD" || r.metal === "SILVER") {
-        byMetal[r.metal].push(r);
+      const key = r.metal.toUpperCase();
+      if (key === "GOLD" || key === "SILVER") {
+        byMetal[key].push(r);
       }
     }
 
@@ -50,7 +60,7 @@ export async function GET() {
         .map((r) => ({
           tenorMonths: r.tenor_months,
           priceToday: r.price,
-          pricePrior: null, // we will wire prior snapshot later
+          pricePrior: null, // future: prior snapshot
         }));
 
       return { metal, points };
@@ -64,7 +74,7 @@ export async function GET() {
       deficitFlag: base.deficit_gdp_flag ?? null,
       goldFrontMonth:
         today
-          .filter((r) => r.metal === "GOLD")
+          .filter((r) => r.metal.toLowerCase() === "gold")
           .sort((a, b) => a.tenor_months - b.tenor_months)[0]?.price ?? null,
     };
 
@@ -74,12 +84,12 @@ export async function GET() {
       curves,
       macro,
     });
-    } catch (err) {
+  } catch (err) {
     console.error("Error in /api/goldcurve:", err);
     return NextResponse.json(
       {
         error: "Failed to load metals curve data",
-        detail: err?.message || String(err)
+        detail: err?.message || String(err),
       },
       { status: 500 }
     );
