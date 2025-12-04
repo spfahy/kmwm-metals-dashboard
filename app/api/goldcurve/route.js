@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { Pool } from "pg";
 
-// Uses DATABASE_URL you set in Vercel
+// Uses DATABASE_URL from Vercel env
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
@@ -9,7 +9,6 @@ const pool = new Pool({
 export async function GET() {
   const client = await pool.connect();
   try {
-    // Today snapshot
     const todayResult = await client.query(
       `SELECT as_of_date,
               metal,
@@ -23,7 +22,6 @@ export async function GET() {
        ORDER BY metal, tenor_months`
     );
 
-    // Prior snapshot (from history view)
     const priorResult = await client.query(
       `SELECT as_of_date,
               metal,
@@ -43,7 +41,6 @@ export async function GET() {
     const asOfDate = today[0]?.as_of_date ?? null;
     const priorDate = prior[0]?.as_of_date ?? null;
 
-    // Group by metal
     function groupByMetal(rows) {
       const out = { GOLD: [], SILVER: [] };
       for (const r of rows) {
@@ -56,10 +53,8 @@ export async function GET() {
 
     const todayBy = groupByMetal(today);
     const priorBy = groupByMetal(prior);
-
     const metals = ["GOLD", "SILVER"];
 
-    // Build curve arrays
     const curves = metals.map((metal) => {
       const t = (todayBy[metal] || []).sort(
         (a, b) => a.tenor_months - b.tenor_months
@@ -79,7 +74,6 @@ export async function GET() {
       };
     });
 
-    // Macro snapshot from "today" rows
     const base = today[0] || {};
     const macro = {
       asOfDate,
