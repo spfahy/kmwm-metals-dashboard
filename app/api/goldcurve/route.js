@@ -22,56 +22,38 @@ export async function GET() {
        ORDER BY metal, tenor_months`
     );
 
-    const priorResult = await client.query(
-      `SELECT as_of_date,
-              metal,
-              tenor_months,
-              price::float,
-              real_10yr_yld,
-              dollar_index,
-              deficit_gdp_flag
-       FROM v_metals_curve_prior
-       WHERE metal IN ('GOLD', 'SILVER')
-       ORDER BY metal, tenor_months`
-    );
-
     const today = todayResult.rows;
-    const prior = priorResult.rows;
 
-    const asOfDate = today[0]?.as_of_date ?? null;
-    const priorDate = prior[0]?.as_of_date ?? null;
-
-    function groupByMetal(rows) {
-      const out = { GOLD: [], SILVER: [] };
-      for (const r of rows) {
-        if (r.metal === "GOLD" || r.metal === "SILVER") {
-          out[r.metal].push(r);
-        }
-      }
-      return out;
+    if (!today || today.length === 0) {
+      return NextResponse.json(
+        { error: "No rows in v_metals_curve_today" },
+        { status: 500 }
+      );
     }
 
-    const todayBy = groupByMetal(today);
-    const priorBy = groupByMetal(prior);
+    const asOfDate = today[0]?.as_of_date ?? null;
+
+    // Group by metal
+    const byMetal = { GOLD: [], SILVER: [] };
+    for (const r of today) {
+      if (r.metal === "GOLD" || r.metal === "SILVER") {
+        byMetal[r.metal].push(r);
+      }
+    }
+
     const metals = ["GOLD", "SILVER"];
 
     const curves = metals.map((metal) => {
-      const t = (todayBy[metal] || []).sort(
-        (a, b) => a.tenor_months - b.tenor_months
-      );
-      const p = (priorBy[metal] || []).sort(
-        (a, b) => a.tenor_months - b.tenor_months
-      );
-      const mapPrior = new Map(p.map((r) => [r.tenor_months, r]));
-
-      return {
-        metal,
-        points: t.map((r) => ({
+      const points = (byMetal[metal] || [])
+        .slice()
+        .sort((a, b) => a.tenor_months - b.tenor_months)
+        .map((r) => ({
           tenorMonths: r.tenor_months,
           priceToday: r.price,
-          pricePrior: mapPrior.get(r.tenor_months)?.price ?? null,
-        })),
-      };
+          pricePrior: null, // we will wire prior snapshot later
+        }));
+
+      return { metal, points };
     });
 
     const base = today[0] || {};
@@ -88,7 +70,7 @@ export async function GET() {
 
     return NextResponse.json({
       asOfDate,
-      priorDate,
+      priorDate: null,
       curves,
       macro,
     });
