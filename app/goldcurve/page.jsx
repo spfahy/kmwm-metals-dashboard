@@ -249,13 +249,22 @@ export default function GoldCurvePage() {
         </div>
       </div>
 
-<div style={{ width: "100%", height: 320, marginBottom: 24 }}>
+// Ledgend under the chart      
+<div style={{ width: "100%", height: 340, marginBottom: 24 }}>
   <ResponsiveContainer>
-    <LineChart data={curveChartData}>
+    <LineChart
+      data={curveChartData}
+      margin={{ top: 10, right: 40, bottom: 50, left: 60 }} // extra bottom space
+    >
       <CartesianGrid strokeDasharray="3 3" />
+
       <XAxis
         dataKey="tenor"
-        label={{ value: "Tenor (months)", position: "insideBottom", dy: 10 }}
+        label={{
+          value: "Tenor (months)",
+          position: "insideBottom",
+          dy: 20, // push axis label a bit further down
+        }}
       />
 
       {/* Left axis for Gold */}
@@ -282,15 +291,23 @@ export default function GoldCurvePage() {
       />
 
       <Tooltip />
-      <Legend />
 
-      {/* Gold uses left axis */}
+      {/* Legend moved down and given its own row */}
+      <Legend
+        verticalAlign="bottom"
+        align="center"
+        height={32}
+        wrapperStyle={{ marginTop: 10 }}
+      />
+
+      {/* GOLD LINES – slightly thicker for visibility */}
       <Line
         yAxisId="left"
         type="monotone"
         dataKey="goldToday"
         name="Gold (Today)"
         stroke="#d4af37"
+        strokeWidth={2}
         dot={false}
       />
       <Line
@@ -298,18 +315,20 @@ export default function GoldCurvePage() {
         type="monotone"
         dataKey="goldPrior"
         name="Gold (Prior)"
-        stroke="#b08d28"
-        strokeDasharray="4 4"
+        stroke="#8c6a00"
+        strokeWidth={2}
+        strokeDasharray="5 3"
         dot={false}
       />
 
-      {/* Silver uses right axis */}
+      {/* SILVER LINES – today in blue, prior in red */}
       <Line
         yAxisId="right"
         type="monotone"
         dataKey="silverToday"
         name="Silver (Today)"
-        stroke="#8884d8"
+        stroke="#3366ff"
+        strokeWidth={2}
         dot={false}
       />
       <Line
@@ -317,8 +336,9 @@ export default function GoldCurvePage() {
         type="monotone"
         dataKey="silverPrior"
         name="Silver (Prior)"
-        stroke="#6660aa"
-        strokeDasharray="4 4"
+        stroke="#ff4d4f"          // red
+        strokeWidth={2}
+        strokeDasharray="5 3"
         dot={false}
       />
     </LineChart>
