@@ -249,52 +249,82 @@ export default function GoldCurvePage() {
         </div>
       </div>
 
-      {/* ====== TERM STRUCTURE CHART (TODAY VS PRIOR) ====== */}
-      <h3 style={{ marginTop: 8 }}>Curve Shift (Today vs Prior)</h3>
-      <div style={{ width: "100%", height: 320, marginBottom: 24 }}>
-        <ResponsiveContainer>
-          <LineChart data={curveChartData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis
-              dataKey="tenor"
-              label={{ value: "Tenor (months)", position: "insideBottom", dy: 10 }}
-            />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Line
-              type="monotone"
-              dataKey="goldToday"
-              name="Gold (Today)"
-              stroke="#d4af37"
-              dot={false}
-            />
-            <Line
-              type="monotone"
-              dataKey="goldPrior"
-              name="Gold (Prior)"
-              stroke="#b08d28"
-              strokeDasharray="4 4"
-              dot={false}
-            />
-            <Line
-              type="monotone"
-              dataKey="silverToday"
-              name="Silver (Today)"
-              stroke="#8884d8"
-              dot={false}
-            />
-            <Line
-              type="monotone"
-              dataKey="silverPrior"
-              name="Silver (Prior)"
-              stroke="#6660aa"
-              strokeDasharray="4 4"
-              dot={false}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+<div style={{ width: "100%", height: 320, marginBottom: 24 }}>
+  <ResponsiveContainer>
+    <LineChart data={curveChartData}>
+      <CartesianGrid strokeDasharray="3 3" />
+      <XAxis
+        dataKey="tenor"
+        label={{ value: "Tenor (months)", position: "insideBottom", dy: 10 }}
+      />
+
+      {/* Left axis for Gold */}
+      <YAxis
+        yAxisId="left"
+        label={{
+          value: "Gold",
+          angle: -90,
+          position: "insideLeft",
+          dx: -10,
+        }}
+      />
+
+      {/* Right axis for Silver */}
+      <YAxis
+        yAxisId="right"
+        orientation="right"
+        label={{
+          value: "Silver",
+          angle: 90,
+          position: "insideRight",
+          dx: 10,
+        }}
+      />
+
+      <Tooltip />
+      <Legend />
+
+      {/* Gold uses left axis */}
+      <Line
+        yAxisId="left"
+        type="monotone"
+        dataKey="goldToday"
+        name="Gold (Today)"
+        stroke="#d4af37"
+        dot={false}
+      />
+      <Line
+        yAxisId="left"
+        type="monotone"
+        dataKey="goldPrior"
+        name="Gold (Prior)"
+        stroke="#b08d28"
+        strokeDasharray="4 4"
+        dot={false}
+      />
+
+      {/* Silver uses right axis */}
+      <Line
+        yAxisId="right"
+        type="monotone"
+        dataKey="silverToday"
+        name="Silver (Today)"
+        stroke="#8884d8"
+        dot={false}
+      />
+      <Line
+        yAxisId="right"
+        type="monotone"
+        dataKey="silverPrior"
+        name="Silver (Prior)"
+        stroke="#6660aa"
+        strokeDasharray="4 4"
+        dot={false}
+      />
+    </LineChart>
+  </ResponsiveContainer>
+</div>
+
 
       {/* ====== SLOPE / CURVE-SHAPE METRICS ====== */}
       <h3>Curve Shape Metrics</h3>
