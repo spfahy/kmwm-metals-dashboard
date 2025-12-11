@@ -8,77 +8,167 @@ const pool = new Pool({
 
 export async function GET() {
   const client = await pool.connect();
+
   try {
-    const todayResult = await client.query(
-      `SELECT as_of_date,
-              metal,
-              tenor_months,
-              price::float,
-              real_10yr_yld,
-              dollar_index,
-              deficit_gdp_flag
-       FROM v_metals_curve_today
-       WHERE LOWER(metal) IN ('gold', 'silver')
-       ORDER BY metal, tenor_months`
+    // 1) Find latest as_of_date from history
+    const latestRes = await client.query(
+      `SELECT MAX(as_of_date) AS as_of_date
+       FROM metals_curve_history`
     );
 
-    const today = todayResult.rows;
-
-    if (!today || today.length === 0) {
-      return NextResponse.json({
-        asOfDate: null,
-        priorDate: null,
-        curves: [],
-        macro: {
-          asOfDate: null,
-          real10y: null,
-          dollarIndex: null,
-          deficitFlag: null,
-          goldFrontMonth: null,
-        },
-      });
+    const latestDate = latestRes.rows[0]?.as_of_date;
+    if (!latestDate) {
+      return NextResponse.json(
+        { error: "No rows in metals_curve_history" },
+        { status: 500 }
+      );
     }
 
-    const asOfDate = today[0]?.as_of_date ?? null;
+    // 2) Find prior as_of_date (immediately before latest)
+    const priorRes = await client.query(
+      `SELECT MAX(as_of_date) AS as_of_date
+       FROM metals_curve_history
+       WHERE as_of_date < $1`,
+      [latestDate]
+    );
 
-    const byMetal = { GOLD: [], SILVER: [] };
-    for (const r of today) {
+    const priorDate = priorRes.rows[0]?.as_of_date || null;
+
+    // 3) Pull rows for latest (and prior if it exists)
+    let rows;
+    if (priorDate) {
+      const res = await client.query(
+        `SELECT
+           as_of_date,
+           metal,
+           tenor_months,
+           price::float,
+           real_10yr_yld,
+           dollar_index,
+           deficit_gdp_flag
+         FROM metals_curve_history
+         WHERE as_of_date IN ($1, $2)
+           AND LOWER(metal) IN ('gold', 'silver')
+         ORDER BY metal, as_of_date, tenor_months`,
+        [latestDate, priorDate]
+      );
+      rows = res.rows;
+    } else {
+      const res = await client.query(
+        `SELECT
+           as_of_date,
+           metal,
+           tenor_months,
+           price::float,
+           real_10yr_yld,
+           dollar_index,
+           deficit_gdp_flag
+         FROM metals_curve_history
+         WHERE as_of_date = $1
+           AND LOWER(metal) IN ('gold', 'silver')
+         ORDER BY metal, tenor_months`,
+        [latestDate]
+      );
+      rows = res.rows;
+    }
+
+    if (!rows || rows.length === 0) {
+      return NextResponse.json(
+        { error: "No metals curve rows found for latest/prior dates" },
+        { status: 500 }
+      );
+    }
+
+    // Split rows into today / prior, by metal
+    const byMetalToday = { GOLD: [], SILVER: [] };
+    const byMetalPrior = { GOLD: [], SILVER: [] };
+
+    for (const r of rows) {
       const key = r.metal.toUpperCase();
-      if (key === "GOLD" || key === "SILVER") {
-        byMetal[key].push(r);
+      if (key !== "GOLD" && key !== "SILVER") continue;
+
+      if (
+        r.as_of_date &&
+        latestDate &&
+        r.as_of_date.getTime() === latestDate.getTime()
+      ) {
+        byMetalToday[key].push(r);
+      } else if (
+        priorDate &&
+        r.as_of_date &&
+        r.as_of_date.getTime() === priorDate.getTime()
+      ) {
+        byMetalPrior[key].push(r);
       }
     }
 
     const metals = ["GOLD", "SILVER"];
 
+    // Build curve points: today + prior price per tenor
     const curves = metals.map((metal) => {
-      const points = (byMetal[metal] || [])
-        .slice()
-        .sort((a, b) => a.tenor_months - b.tenor_months)
-        .map((r) => ({
-          tenorMonths: r.tenor_months,
-          priceToday: r.price,
-          pricePrior: null,
-        }));
+      const todayRows = (byMetalToday[metal] || []).slice();
+      const priorRows = (byMetalPrior[metal] || []).slice();
+
+      todayRows.sort((a, b) => a.tenor_months - b.tenor_months);
+      priorRows.sort((a, b) => a.tenor_months - b.tenor_months);
+
+      const points = todayRows.map((tr) => {
+        const match = priorRows.find(
+          (pr) => pr.tenor_months === tr.tenor_months
+        );
+        return {
+          tenorMonths: tr.tenor_months,
+          priceToday: tr.price,
+          pricePrior: match ? match.price : null,
+        };
+      });
 
       return { metal, points };
     });
 
-    const base = today[0] || {};
+    // Macro (today + prior)
+    const todayAll = rows.filter(
+      (r) =>
+        r.as_of_date &&
+        latestDate &&
+        r.as_of_date.getTime() === latestDate.getTime()
+    );
+    const priorAll =
+      priorDate &&
+      rows.filter(
+        (r) =>
+          r.as_of_date &&
+          priorDate &&
+          r.as_of_date.getTime() === priorDate.getTime()
+      );
+
+    const baseToday = todayAll[0] || {};
+    const basePrior = priorAll && priorAll[0] ? priorAll[0] : {};
+
+    const goldTodayRows = byMetalToday.GOLD || [];
+    const goldPriorRows = byMetalPrior.GOLD || [];
+
+    const goldFrontMonthToday =
+      goldTodayRows.find((r) => r.tenor_months === 0)?.price ?? null;
+    const goldFrontMonthPrior =
+      goldPriorRows.find((r) => r.tenor_months === 0)?.price ?? null;
+
     const macro = {
-      asOfDate,
-      real10y: base.real_10yr_yld ?? null,
-      dollarIndex: base.dollar_index ?? null,
-      deficitFlag: base.deficit_gdp_flag ?? null,
-      goldFrontMonth:
-        today
-          .filter((r) => r.metal.toLowerCase() === "gold")
-          .sort((a, b) => a.tenor_months - b.tenor_months)[0]?.price ?? null,
+      asOfDate: latestDate,
+      priorAsOfDate: priorDate,
+      real10y: baseToday.real_10yr_yld ?? null,
+      real10yPrior: basePrior.real_10yr_yld ?? null,
+      dollarIndex: baseToday.dollar_index ?? null,
+      dollarIndexPrior: basePrior.dollar_index ?? null,
+      deficitFlag: baseToday.deficit_gdp_flag ?? null,
+      deficitFlagPrior: basePrior.deficit_gdp_flag ?? null,
+      goldFrontMonth: goldFrontMonthToday,
+      goldFrontMonthPrior,
     };
 
     return NextResponse.json({
-      asOfDate,
-      priorDate: null,
+      asOfDate: latestDate,
+      priorDate,
       curves,
       macro,
     });
