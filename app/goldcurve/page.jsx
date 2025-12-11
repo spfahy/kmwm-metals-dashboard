@@ -1,9 +1,10 @@
 async function getData() {
-  const url = `${process.env.NEXT_PUBLIC_DASHBOARD_URL}/api/goldcurve`;
-
-  const res = await fetch(url, { cache: "no-store" });
+  // Call the API route inside the same app
+  const res = await fetch("/api/goldcurve", { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`Failed to load goldcurve data (${res.status})`);
+  }
   const data = await res.json();
-
   return data;
 }
 
