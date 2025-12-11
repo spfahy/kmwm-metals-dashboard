@@ -1,6 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from "recharts";
 
 function buildCurves(data) {
   const curves = data?.curves ?? [];
@@ -12,33 +22,79 @@ function buildCurves(data) {
 }
 
 function formatNumber(v, digits = 2) {
-  if (v === null || v === undefined) return "—";
+  if (v === null || v === undefined || Number.isNaN(v)) return "—";
   return Number(v).toFixed(digits);
+}
+
+function priceAt(points, tenor, which = "today") {
+  const p = points.find((x) => x.tenorMonths === tenor);
+  if (!p) return null;
+  return which === "prior" ? p.pricePrior : p.priceToday;
+}
+
+// Simple slope between two tenors
+function segmentSlope(points, t1, t2, which = "today") {
+  const p1 = priceAt(points, t1, which);
+  const p2 = priceAt(points, t2, which);
+  if (p1 == null || p2 == null) return null;
+  return (p2 - p1) / (t2 - t1);
+}
+
+// Classify curve shape: normal / flat / inverted based on total slope
+function classifyCurve(points, which = "today") {
+  const p0 = priceAt(points, 0, which);
+  const p12 = priceAt(points, 12, which);
+  if (p0 == null || p12 == null) return "No data";
+
+  const slope = (p12 - p0) / 12;
+  if (slope > 3) return "Steepening (normal)";
+  if (slope < -3) return "Inverted / stressed";
+  return "Flat / mild";
 }
 
 export default function GoldCurvePage() {
   const [data, setData] = useState(null);
+  const [history, setHistory] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [historyError, setHistoryError] = useState(null);
   const [showRaw, setShowRaw] = useState(false);
 
+  // Load today/prior curve
   useEffect(() => {
     async function load() {
       try {
         const res = await fetch("/api/goldcurve", { cache: "no-store" });
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         setData(json);
       } catch (err) {
         console.error(err);
-        setError(err.message || "Failed to load data");
+        setError(err.message || "Failed to load curve data");
       } finally {
         setLoading(false);
       }
     }
     load();
+  }, []);
+
+  // Load front-month history
+  useEffect(() => {
+    async function loadHistory() {
+      try {
+        const res = await fetch("/api/metals-history", { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        setHistory(json.series || []);
+      } catch (err) {
+        console.error(err);
+        setHistoryError(err.message || "Failed to load history");
+      } finally {
+        setHistoryLoading(false);
+      }
+    }
+    loadHistory();
   }, []);
 
   if (loading) {
@@ -48,12 +104,14 @@ export default function GoldCurvePage() {
   if (error || !data) {
     return (
       <div style={{ padding: 20, color: "red" }}>
-        Error loading dashboard: {error || "No data returned"}
+        Error loading dashboard: {error || "No curve data returned"}
       </div>
     );
   }
 
   const { asOfDate, priorDate, macro } = data;
+  const hasPrior = !!priorDate;
+
   const curves = buildCurves(data);
   const gold = curves.GOLD || [];
   const silver = curves.SILVER || [];
@@ -65,13 +123,28 @@ export default function GoldCurvePage() {
     ])
   ).sort((a, b) => a - b);
 
-  function priceAt(points, tenor, which = "today") {
-    const p = points.find((x) => x.tenorMonths === tenor);
-    if (!p) return null;
-    return which === "prior" ? p.pricePrior : p.priceToday;
-  }
+  // Build Recharts data for term-structure chart
+  const curveChartData = tenors.map((t) => ({
+    tenor: t,
+    goldToday: priceAt(gold, t, "today"),
+    goldPrior: priceAt(gold, t, "prior"),
+    silverToday: priceAt(silver, t, "today"),
+    silverPrior: priceAt(silver, t, "prior"),
+  }));
 
-  const hasPrior = priorDate != null;
+  // Slope metrics
+  const goldSlope_0_1 = segmentSlope(gold, 0, 1, "today");
+  const goldSlope_1_3 = segmentSlope(gold, 1, 3, "today");
+  const goldSlope_3_12 = segmentSlope(gold, 3, 12, "today");
+  const goldSlope_total = segmentSlope(gold, 0, 12, "today");
+
+  const silverSlope_0_1 = segmentSlope(silver, 0, 1, "today");
+  const silverSlope_1_3 = segmentSlope(silver, 1, 3, "today");
+  const silverSlope_3_12 = segmentSlope(silver, 3, 12, "today");
+  const silverSlope_total = segmentSlope(silver, 0, 12, "today");
+
+  const goldShape = classifyCurve(gold, "today");
+  const silverShape = classifyCurve(silver, "today");
 
   return (
     <div style={{ padding: 32, fontFamily: "Arial, sans-serif" }}>
@@ -176,13 +249,185 @@ export default function GoldCurvePage() {
         </div>
       </div>
 
-      {/* Term structure table: Today vs Prior */}
+      {/* ====== TERM STRUCTURE CHART (TODAY VS PRIOR) ====== */}
+      <h3 style={{ marginTop: 8 }}>Curve Shift (Today vs Prior)</h3>
+      <div style={{ width: "100%", height: 320, marginBottom: 24 }}>
+        <ResponsiveContainer>
+          <LineChart data={curveChartData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis
+              dataKey="tenor"
+              label={{ value: "Tenor (months)", position: "insideBottom", dy: 10 }}
+            />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Line
+              type="monotone"
+              dataKey="goldToday"
+              name="Gold (Today)"
+              stroke="#d4af37"
+              dot={false}
+            />
+            <Line
+              type="monotone"
+              dataKey="goldPrior"
+              name="Gold (Prior)"
+              stroke="#b08d28"
+              strokeDasharray="4 4"
+              dot={false}
+            />
+            <Line
+              type="monotone"
+              dataKey="silverToday"
+              name="Silver (Today)"
+              stroke="#8884d8"
+              dot={false}
+            />
+            <Line
+              type="monotone"
+              dataKey="silverPrior"
+              name="Silver (Prior)"
+              stroke="#6660aa"
+              strokeDasharray="4 4"
+              dot={false}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* ====== SLOPE / CURVE-SHAPE METRICS ====== */}
+      <h3>Curve Shape Metrics</h3>
+      <div
+        style={{
+          display: "flex",
+          gap: 16,
+          marginBottom: 24,
+          flexWrap: "wrap",
+        }}
+      >
+        {/* Gold metrics */}
+        <div
+          style={{
+            flex: "1 1 260px",
+            border: "1px solid #ddd",
+            borderRadius: 8,
+            padding: 12,
+          }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>Gold Curve</div>
+          <div style={{ fontSize: 13, color: "#555", marginBottom: 8 }}>
+            Shape: <strong>{goldShape}</strong>
+          </div>
+          <table
+            style={{
+              borderCollapse: "collapse",
+              width: "100%",
+              fontSize: 12,
+            }}
+          >
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left", padding: "4px 6px" }}>Segment</th>
+                <th style={{ textAlign: "right", padding: "4px 6px" }}>
+                  Slope (Today)
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style={{ padding: "3px 6px" }}>0→1m</td>
+                <td style={{ padding: "3px 6px", textAlign: "right" }}>
+                  {formatNumber(goldSlope_0_1, 2)}
+                </td>
+              </tr>
+              <tr>
+                <td style={{ padding: "3px 6px" }}>1→3m</td>
+                <td style={{ padding: "3px 6px", textAlign: "right" }}>
+                  {formatNumber(goldSlope_1_3, 2)}
+                </td>
+              </tr>
+              <tr>
+                <td style={{ padding: "3px 6px" }}>3→12m</td>
+                <td style={{ padding: "3px 6px", textAlign: "right" }}>
+                  {formatNumber(goldSlope_3_12, 2)}
+                </td>
+              </tr>
+              <tr>
+                <td style={{ padding: "3px 6px" }}>0→12m (total)</td>
+                <td style={{ padding: "3px 6px", textAlign: "right" }}>
+                  {formatNumber(goldSlope_total, 2)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Silver metrics */}
+        <div
+          style={{
+            flex: "1 1 260px",
+            border: "1px solid #ddd",
+            borderRadius: 8,
+            padding: 12,
+          }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>Silver Curve</div>
+          <div style={{ fontSize: 13, color: "#555", marginBottom: 8 }}>
+            Shape: <strong>{silverShape}</strong>
+          </div>
+          <table
+            style={{
+              borderCollapse: "collapse",
+              width: "100%",
+              fontSize: 12,
+            }}
+          >
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left", padding: "4px 6px" }}>Segment</th>
+                <th style={{ textAlign: "right", padding: "4px 6px" }}>
+                  Slope (Today)
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style={{ padding: "3px 6px" }}>0→1m</td>
+                <td style={{ padding: "3px 6px", textAlign: "right" }}>
+                  {formatNumber(silverSlope_0_1, 2)}
+                </td>
+              </tr>
+              <tr>
+                <td style={{ padding: "3px 6px" }}>1→3m</td>
+                <td style={{ padding: "3px 6px", textAlign: "right" }}>
+                  {formatNumber(silverSlope_1_3, 2)}
+                </td>
+              </tr>
+              <tr>
+                <td style={{ padding: "3px 6px" }}>3→12m</td>
+                <td style={{ padding: "3px 6px", textAlign: "right" }}>
+                  {formatNumber(silverSlope_3_12, 2)}
+                </td>
+              </tr>
+              <tr>
+                <td style={{ padding: "3px 6px" }}>0→12m (total)</td>
+                <td style={{ padding: "3px 6px", textAlign: "right" }}>
+                  {formatNumber(silverSlope_total, 2)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ====== TERM STRUCTURE TABLE (TODAY VS PRIOR) ====== */}
       <h3>Term Structure (Gold vs Silver)</h3>
       <table
         style={{
           borderCollapse: "collapse",
           width: "100%",
-          maxWidth: 800,
+          maxWidth: 900,
           marginBottom: 24,
         }}
       >
@@ -262,9 +507,7 @@ export default function GoldCurvePage() {
                   textAlign: "right",
                 }}
               >
-                {hasPrior
-                  ? formatNumber(priceAt(gold, t, "prior"), 1)
-                  : "—"}
+                {hasPrior ? formatNumber(priceAt(gold, t, "prior"), 1) : "—"}
               </td>
               <td
                 style={{
@@ -282,16 +525,52 @@ export default function GoldCurvePage() {
                   textAlign: "right",
                 }}
               >
-                {hasPrior
-                  ? formatNumber(priceAt(silver, t, "prior"), 2)
-                  : "—"}
+                {hasPrior ? formatNumber(priceAt(silver, t, "prior"), 2) : "—"}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      {/* Raw JSON toggle */}
+      {/* ====== FRONT-MONTH HISTORY CHART ====== */}
+      <h3>Front-Month History (Gold vs Silver)</h3>
+      {historyLoading && (
+        <div style={{ padding: 8 }}>Loading front-month history…</div>
+      )}
+      {historyError && (
+        <div style={{ padding: 8, color: "red" }}>
+          Error loading history: {historyError}
+        </div>
+      )}
+      {!historyLoading && !historyError && history && history.length > 0 && (
+        <div style={{ width: "100%", height: 320, marginBottom: 24 }}>
+          <ResponsiveContainer>
+            <LineChart data={history}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Line
+                type="monotone"
+                dataKey="gold"
+                name="Gold Front-Month"
+                stroke="#d4af37"
+                dot={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="silver"
+                name="Silver Front-Month"
+                stroke="#8884d8"
+                dot={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* ====== RAW JSON TOGGLE ====== */}
       <button
         onClick={() => setShowRaw((v) => !v)}
         style={{
