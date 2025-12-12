@@ -394,6 +394,16 @@ export default function GoldCurvePage() {
   const silverRegime = regimeTag(silver, "today");
   // ===== 3-day momentum from front-month history (noise-filtered) =====
 const historyOk = !historyLoading && !historyError && history && history.length > 0;
+// ✅ REQUIRED: compute history domains BEFORE JSX
+const historyGoldDomain =
+  historyOk
+    ? computeDomain(history.map((d) => d.gold))
+    : ["auto", "auto"];
+
+const historySilverDomain =
+  historyOk
+    ? computeDomain(history.map((d) => d.silver))
+    : ["auto", "auto"];
 
 const goldNow = historyOk ? history[history.length - 1]?.gold : null;
 const silverNow = historyOk ? history[history.length - 1]?.silver : null;
