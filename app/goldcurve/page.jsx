@@ -27,6 +27,17 @@ function formatNumber(v, digits = 2) {
   return Number(v).toFixed(digits);
 }
 
+function formatDate(value) {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 function priceAt(points, tenor, which = "today") {
   const p = points.find((x) => x.tenorMonths === tenor);
   if (!p) return null;
@@ -311,14 +322,15 @@ export default function GoldCurvePage() {
     <div style={{ padding: 32, fontFamily: "Arial, sans-serif" }}>
       <h1 style={{ marginBottom: 8 }}>Gold &amp; Silver Term Structure</h1>
 
-      <div style={{ marginBottom: 4, color: "#555" }}>
-        As of: <strong>{String(asOfDate) || "—"}</strong>
-        {hasPrior && (
-          <span style={{ marginLeft: 12, fontSize: 13, color: "#777" }}>
-            (prior curve: <strong>{String(priorDate)}</strong>)
-          </span>
-        )}
-      </div>
+<div style={{ marginBottom: 4, color: "#555" }}>
+  As of: <strong>{formatDate(asOfDate)}</strong>
+  {hasPrior && (
+    <span style={{ marginLeft: 12, fontSize: 13, color: "#777" }}>
+      (prior curve: <strong>{formatDate(priorDate)}</strong>)
+    </span>
+  )}
+</div>
+      
 
       {hasPrior && (
         <div style={{ marginBottom: 10, color: "#666", fontSize: 13 }}>
