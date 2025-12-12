@@ -281,6 +281,10 @@ function formatDate(value) {
     year: "numeric",
   });
 }
+function percentChange(from, to) {
+  if (from == null || to == null || from === 0) return null;
+  return ((to - from) / from) * 100;
+}
 
 export default function GoldCurvePage() {
   const [data, setData] = useState(null);
