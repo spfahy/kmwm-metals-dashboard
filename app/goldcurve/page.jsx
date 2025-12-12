@@ -10,6 +10,7 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  ReferenceArea,
   ReferenceLine,
 } from "recharts";
 
