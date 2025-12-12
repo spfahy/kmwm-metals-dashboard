@@ -808,26 +808,50 @@ export default function GoldCurvePage() {
       {!historyLoading && !historyError && history && history.length > 0 && (
         <div style={{ width: "100%", height: 320, marginBottom: 24 }}>
           <ResponsiveContainer>
-            <LineChart data={history}>
+            <LineChart
+  data={history}
+  margin={{ top: 10, right: 55, bottom: 50, left: 60 }}
+>
+
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="date" />
-              <YAxis />
+              <YAxis
+  yAxisId="left"
+  domain={["auto", "auto"]}
+  tick={{ fontSize: 12 }}
+  tickCount={5}
+  label={{ value: "Gold", angle: -90, position: "insideLeft", dx: -10 }}
+/>
+
+<YAxis
+  yAxisId="right"
+  orientation="right"
+  domain={["auto", "auto"]}
+  tick={{ fontSize: 12 }}
+  tickCount={5}
+  label={{ value: "Silver", angle: 90, position: "insideRight", dx: 10 }}
+/>
+
               <Tooltip />
               <Legend />
-              <Line
-                type="monotone"
-                dataKey="gold"
-                name="Gold Front-Month"
-                stroke="#d4af37"
-                dot={false}
-              />
-              <Line
-                type="monotone"
-                dataKey="silver"
-                name="Silver Front-Month"
-                stroke="#C0392B"
-                dot={false}
-              />
+            <Line
+  yAxisId="left"
+  type="monotone"
+  dataKey="gold"
+  name="Gold Front-Month"
+  stroke="#d4af37"
+  dot={false}
+/>
+
+            <Line
+  yAxisId="right"
+  type="monotone"
+  dataKey="silver"
+  name="Silver Front-Month"
+  stroke="#ff4d4f"
+  dot={false}
+/>
+
             </LineChart>
           </ResponsiveContainer>
         </div>
