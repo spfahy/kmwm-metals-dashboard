@@ -543,13 +543,13 @@ Silver: <strong>{formatNumber(silverSlope_0_1, 2)} /mo</strong>{" "}
 ) : (
   <span style={{ color: "#2e7d32", fontWeight: 600 }}>Normal</span>
 )}
-
+    </div>
 
     <div style={{ color: "#555" }}>3) Front vs Back Driver</div>
     <div>
       Gold: <strong>{goldDriver}</strong>{"  "} | Silver: <strong>{silverDriver}</strong>
     </div>
-
+    </div>
     <div style={{ color: "#555" }}>4) Front-Month Momentum (3-day)</div>
     <div>
       Gold: <strong>{goldMom3.label}</strong>
@@ -817,8 +817,8 @@ Silver: <strong>{formatNumber(silverSlope_0_1, 2)} /mo</strong>{" "}
           </div>
         </>
       )}
-      {/* ====== RAW JSON TOGGLE ====== */}
-      <div>
+           {/* ====== RAW JSON TOGGLE ====== */}
+      <div style={{ marginTop: 10 }}>
         <button
           onClick={() => setShowRaw((v) => !v)}
           style={{
@@ -851,3 +851,4 @@ Silver: <strong>{formatNumber(silverSlope_0_1, 2)} /mo</strong>{" "}
     </div>
   );
 }
+
