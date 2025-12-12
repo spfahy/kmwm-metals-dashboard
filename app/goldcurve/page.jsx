@@ -52,6 +52,17 @@ function classifyCurve(points, which = "today") {
   if (slope < -3) return "Inverted / stressed";
   return "Flat / mild";
 }
+function regimeTag(points, which = "today") {
+  const p0 = priceAt(points, 0, which);
+  const p12 = priceAt(points, 12, which);
+  if (p0 == null || p12 == null) return { label: "No data", detail: "" };
+
+  const diff = p12 - p0;
+
+  if (diff > 15) return { label: "Contango", detail: "upward carry" };
+  if (diff < -15) return { label: "Backwardation", detail: "front-end stress" };
+  return { label: "Flat", detail: "neutral carry" };
+}
 
 /**
  * Compute a tight axis domain from a list of values.
@@ -288,6 +299,8 @@ export default function GoldCurvePage() {
 
   const goldShape = classifyCurve(gold, "today");
   const silverShape = classifyCurve(silver, "today");
+  const goldRegime = regimeTag(gold, "today");
+  const silverRegime = regimeTag(silver, "today");
 
   return (
     <div style={{ padding: 32, fontFamily: "Arial, sans-serif" }}>
