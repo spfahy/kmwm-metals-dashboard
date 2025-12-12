@@ -314,14 +314,15 @@ export default function GoldCurvePage() {
         )}
       </div>
 {hasPrior && (
-  <div style={{ marginTop: 6, marginBottom: 12, color: "#555", fontSize: 13 }}>
-    <strong>Curve Change (Today − Prior):</strong>{" "}
-    Gold 0m {formatNumber(goldDelta0, 1)} |{" "}
-    Gold 12m {formatNumber(goldDelta12, 1)} |{" "}
-    Silver 0m {formatNumber(silverDelta0, 2)} |{" "}
-    Silver 12m {formatNumber(silverDelta12, 2)}
+  <div style={{ marginBottom: 10, color: "#666", fontSize: 13 }}>
+    <strong>Regime:</strong>{" "}
+    Gold {goldRegime.label}{" "}
+    <span style={{ color: "#888" }}>({goldRegime.detail})</span> |{" "}
+    Silver {silverRegime.label}{" "}
+    <span style={{ color: "#888" }}>({silverRegime.detail})</span>
   </div>
 )}
+
 
       {/* Macro panel */}
       <div
