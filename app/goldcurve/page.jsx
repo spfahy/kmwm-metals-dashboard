@@ -52,6 +52,71 @@ function classifyCurve(points, which = "today") {
   return "Flat / mild";
 }
 
+/**
+ * Compute a tight axis domain from a list of values.
+ * - Ignores null/undefined/NaN
+ * - Adds padding so the line doesn't touch the chart frame
+ */
+function computeDomain(values, padPct = 0.02) {
+  const clean = (values || []).filter(
+    (v) => v !== null && v !== undefined && !Number.isNaN(Number(v))
+  );
+  if (clean.length === 0) return ["auto", "auto"];
+
+  const min = Math.min(...clean);
+  const max = Math.max(...clean);
+
+  // If flat line (min == max), widen a bit so axis still renders nicely
+  if (min === max) {
+    const bump = Math.abs(min) * 0.01 || 1;
+    return [Math.floor(min - bump), Math.ceil(max + bump)];
+  }
+
+  const range = max - min;
+  const pad = range * padPct;
+
+  return [Math.floor(min - pad), Math.ceil(max + pad)];
+}
+
+/**
+ * Custom legend that WRAPS cleanly (no overlap).
+ * This is the fix for your legend writing over itself.
+ */
+function WrappedLegend(props) {
+  const { payload } = props;
+  if (!payload || payload.length === 0) return null;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        justifyContent: "center",
+        gap: 14,
+        paddingTop: 14,
+        lineHeight: "18px",
+      }}
+    >
+      {payload.map((entry) => (
+        <div
+          key={entry.dataKey}
+          style={{ display: "flex", alignItems: "center", gap: 8 }}
+        >
+          <span
+            style={{
+              width: 18,
+              height: 0,
+              borderTop: `3px ${entry.payload?.strokeDasharray ? "dashed" : "solid"} ${entry.color}`,
+              display: "inline-block",
+            }}
+          />
+          <span style={{ fontSize: 12, color: "#333" }}>{entry.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function GoldCurvePage() {
   const [data, setData] = useState(null);
   const [history, setHistory] = useState(null);
@@ -131,6 +196,16 @@ export default function GoldCurvePage() {
     silverToday: priceAt(silver, t, "today"),
     silverPrior: priceAt(silver, t, "prior"),
   }));
+
+  // === Dynamic axis domains (tight scales) ===
+  const goldDomain = computeDomain(
+    curveChartData.flatMap((d) => [d.goldToday, d.goldPrior]),
+    0.02
+  );
+  const silverDomain = computeDomain(
+    curveChartData.flatMap((d) => [d.silverToday, d.silverPrior]),
+    0.03
+  );
 
   // Slope metrics
   const goldSlope_0_1 = segmentSlope(gold, 0, 1, "today");
@@ -249,102 +324,101 @@ export default function GoldCurvePage() {
         </div>
       </div>
 
-// Ledgend under the chart      
-<div style={{ width: "100%", height: 340, marginBottom: 24 }}>
-  <ResponsiveContainer>
-    <LineChart
-      data={curveChartData}
-      margin={{ top: 10, right: 40, bottom: 50, left: 60 }} // extra bottom space
-    >
-      <CartesianGrid strokeDasharray="3 3" />
+      {/* Legend under the chart (fixed + wrapping) */}
+      <div style={{ width: "100%", height: 360, marginBottom: 24 }}>
+        <ResponsiveContainer>
+          <LineChart
+            data={curveChartData}
+            margin={{ top: 10, right: 55, bottom: 70, left: 60 }} // more bottom for legend + axis label
+          >
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
 
-      <XAxis
-        dataKey="tenor"
-        label={{
-          value: "Tenor (months)",
-          position: "insideBottom",
-          dy: 20, // push axis label a bit further down
-        }}
-      />
+            <XAxis
+              dataKey="tenor"
+              label={{
+                value: "Tenor (Months)",
+                position: "insideBottom",
+                dy: 30, // pushes axis label down below tick labels
+              }}
+              tick={{ fontSize: 12 }}
+            />
 
-      {/* Left axis for Gold */}
-      <YAxis
-        yAxisId="left"
-        label={{
-          value: "Gold",
-          angle: -90,
-          position: "insideLeft",
-          dx: -10,
-        }}
-      />
+            {/* Left axis for Gold (tight scale) */}
+            <YAxis
+              yAxisId="left"
+              domain={goldDomain}
+              tick={{ fontSize: 12 }}
+              label={{
+                value: "Gold",
+                angle: -90,
+                position: "insideLeft",
+                dx: -10,
+              }}
+            />
 
-      {/* Right axis for Silver */}
-      <YAxis
-        yAxisId="right"
-        orientation="right"
-        label={{
-          value: "Silver",
-          angle: 90,
-          position: "insideRight",
-          dx: 10,
-        }}
-      />
+            {/* Right axis for Silver (tight scale) */}
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              domain={silverDomain}
+              tick={{ fontSize: 12 }}
+              label={{
+                value: "Silver",
+                angle: 90,
+                position: "insideRight",
+                dx: 10,
+              }}
+            />
 
-      <Tooltip />
+            <Tooltip />
 
-      {/* Legend moved down and given its own row */}
-      <Legend
-        verticalAlign="bottom"
-        align="center"
-        height={32}
-        wrapperStyle={{ marginTop: 10 }}
-      />
+            {/* Custom legend that WRAPS and never overlaps */}
+            <Legend verticalAlign="bottom" align="center" content={<WrappedLegend />} />
 
-      {/* GOLD LINES – slightly thicker for visibility */}
-      <Line
-        yAxisId="left"
-        type="monotone"
-        dataKey="goldToday"
-        name="Gold (Today)"
-        stroke="#d4af37"
-        strokeWidth={2}
-        dot={false}
-      />
-      <Line
-        yAxisId="left"
-        type="monotone"
-        dataKey="goldPrior"
-        name="Gold (Prior)"
-        stroke="#8c6a00"
-        strokeWidth={2}
-        strokeDasharray="5 3"
-        dot={false}
-      />
+            {/* GOLD: Today = thicker solid; Prior = thinner dashed */}
+            <Line
+              yAxisId="left"
+              type="monotone"
+              dataKey="goldToday"
+              name="Gold Today"
+              stroke="#d4af37"
+              strokeWidth={3}
+              dot={false}
+            />
+            <Line
+              yAxisId="left"
+              type="monotone"
+              dataKey="goldPrior"
+              name="Gold Prior"
+              stroke="#d4af37"
+              strokeWidth={2}
+              strokeDasharray="6 4"
+              dot={false}
+            />
 
-      {/* SILVER LINES – today in blue, prior in red */}
-      <Line
-        yAxisId="right"
-        type="monotone"
-        dataKey="silverToday"
-        name="Silver (Today)"
-        stroke="#3366ff"
-        strokeWidth={2}
-        dot={false}
-      />
-      <Line
-        yAxisId="right"
-        type="monotone"
-        dataKey="silverPrior"
-        name="Silver (Prior)"
-        stroke="#ff4d4f"          // red
-        strokeWidth={2}
-        strokeDasharray="5 3"
-        dot={false}
-      />
-    </LineChart>
-  </ResponsiveContainer>
-</div>
-
+            {/* SILVER: Today = thicker solid RED; Prior = thinner dashed RED */}
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="silverToday"
+              name="Silver Today"
+              stroke="#C0392B"
+              strokeWidth={3}
+              dot={false}
+            />
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="silverPrior"
+              name="Silver Prior"
+              stroke="#C0392B"
+              strokeWidth={2}
+              strokeDasharray="6 4"
+              dot={false}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
 
       {/* ====== SLOPE / CURVE-SHAPE METRICS ====== */}
       <h3>Curve Shape Metrics</h3>
@@ -596,7 +670,7 @@ export default function GoldCurvePage() {
         <div style={{ width: "100%", height: 320, marginBottom: 24 }}>
           <ResponsiveContainer>
             <LineChart data={history}>
-              <CartesianGrid strokeDasharray="3 3" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="date" />
               <YAxis />
               <Tooltip />
@@ -612,7 +686,7 @@ export default function GoldCurvePage() {
                 type="monotone"
                 dataKey="silver"
                 name="Silver Front-Month"
-                stroke="#8884d8"
+                stroke="#C0392B"
                 dot={false}
               />
             </LineChart>
