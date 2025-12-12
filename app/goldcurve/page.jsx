@@ -323,9 +323,19 @@ export default function GoldCurvePage() {
           )}
         </div>
       </div>
+{/* Legend ABOVE the chart (prevents all overlap issues) */}
+<WrappedLegend
+  payload={[
+    { value: "Gold Today", color: "#d4af37" },
+    { value: "Gold Prior", color: "#d4af37", payload: { strokeDasharray: "6 4" } },
+    { value: "Silver Today", color: "#C0392B" },
+    { value: "Silver Prior", color: "#C0392B", payload: { strokeDasharray: "6 4" } },
+  ]}
+/>
 
-      {/* Legend under the chart (fixed + wrapping) */}
-      <div style={{ width: "100%", height: 360, marginBottom: 24 }}>
+<div style={{ width: "100%", height: 360, marginBottom: 24 }}>
+
+     
         <ResponsiveContainer>
           <LineChart
             data={curveChartData}
@@ -372,14 +382,7 @@ export default function GoldCurvePage() {
 
             <Tooltip />
 
-            {/* Custom legend that WRAPS and never overlaps */}
-            <Legend
-  verticalAlign="bottom"
-  align="center"
-  content={<WrappedLegend />}
-/>
-
-
+           
             {/* GOLD: Today = thicker solid; Prior = thinner dashed */}
             <Line
               yAxisId="left"
