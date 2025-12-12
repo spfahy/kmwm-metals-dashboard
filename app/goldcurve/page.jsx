@@ -93,7 +93,7 @@ function WrappedLegend(props) {
         flexWrap: "wrap",
         justifyContent: "center",
         gap: 14,
-        paddingTop: 14,
+        paddingTop: 28,
         lineHeight: "18px",
       }}
     >
@@ -329,7 +329,7 @@ export default function GoldCurvePage() {
         <ResponsiveContainer>
           <LineChart
             data={curveChartData}
-            margin={{ top: 10, right: 55, bottom: 70, left: 60 }} // more bottom for legend + axis label
+            margin={{ top: 10, right: 55, bottom: 95, left: 60 }} // more bottom for legend + axis label
           >
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
 
@@ -338,7 +338,7 @@ export default function GoldCurvePage() {
               label={{
                 value: "Tenor (Months)",
                 position: "insideBottom",
-                dy: 30, // pushes axis label down below tick labels
+                dy: 18, // pushes axis label down below tick labels
               }}
               tick={{ fontSize: 12 }}
             />
@@ -373,7 +373,12 @@ export default function GoldCurvePage() {
             <Tooltip />
 
             {/* Custom legend that WRAPS and never overlaps */}
-            <Legend verticalAlign="bottom" align="center" content={<WrappedLegend />} />
+            <Legend
+  verticalAlign="bottom"
+  align="center"
+  content={<WrappedLegend />}
+/>
+
 
             {/* GOLD: Today = thicker solid; Prior = thinner dashed */}
             <Line
