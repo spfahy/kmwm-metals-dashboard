@@ -188,6 +188,45 @@ function moveDriverLabel(frontSlope, backSlope, ratio = 1.5) {
   return "Mixed";
 }
 
+function dailyAutoSummary({
+  hasPrior,
+  goldRegime,
+  silverRegime,
+  goldFrontStress,
+  silverFrontStress,
+  goldSlope_0_1,
+  silverSlope_0_1,
+  goldSince3d,
+  silverSince3d,
+  goldSince3dIsSignal,
+  silverSince3dIsSignal,
+  macro,
+}) {
+  // If we don’t have prior data, don’t pretend we do.
+  if (!hasPrior) {
+    return "Bottom line: Prior curve data is not available yet, so today’s read focuses on current curve shape and front-end stability only.";
+  }
+
+  const goldRegTxt = `Gold ${goldRegime.label.toLowerCase()} (${goldRegime.detail})`;
+  const silverRegTxt = `Silver ${silverRegime.label.toLowerCase()} (${silverRegime.detail})`;
+
+  const stressBits = [];
+  if (goldFrontStress) stressBits.push(`Gold front-end stress flagged (0→1m slope ${Number(goldSlope_0_1).toFixed(2)})`);
+  if (silverFrontStress) stressBits.push(`Silver front-end stress flagged (0→1m slope ${Number(silverSlope_0_1).toFixed(2)})`);
+  const stressTxt =
+    stressBits.length > 0
+      ? stressBits.join(". ") + "."
+      : `No front-end stress signals (Gold 0→1m ${goldSlope_0_1 == null ? "—" : Number(goldSlope_0_1).toFixed(2)}, Silver 0→1m ${silverSlope_0_1 == null ? "—" : Number(silverSlope_0_1).toFixed(2)}).`;
+
+  const momTxt = `Momentum (3-day): Gold ${goldSince3dIsSignal ? "signal" : "noise"} (${goldSince3d == null ? "—" : (goldSince3d >= 0 ? "+" : "") + goldSince3d.toFixed(2) + "%"}) | Silver ${silverSince3dIsSignal ? "signal" : "noise"} (${silverSince3d == null ? "—" : (silverSince3d >= 0 ? "+" : "") + silverSince3d.toFixed(2) + "%"})`;
+
+  const macroTxt =
+    macro
+      ? `Macro (vs prior): Real 10-year yield ${(macro.real10y != null && macro.real10yPrior != null) ? ((macro.real10y - macro.real10yPrior >= 0 ? "+" : "") + (macro.real10y - macro.real10yPrior).toFixed(2)) : "—"} pts | Dollar index ${(macro.dollarIndex != null && macro.dollarIndexPrior != null) ? ((macro.dollarIndex - macro.dollarIndexPrior >= 0 ? "+" : "") + (macro.dollarIndex - macro.dollarIndexPrior).toFixed(2)) : "—"}` 
+      : "";
+
+  return `Bottom line: ${goldRegTxt}; ${silverRegTxt}. ${stressTxt} ${momTxt}${macroTxt ? " " + macroTxt + "." : ""}`;
+}
 
 function WrappedLegend({ payload }) {
   if (!payload || payload.length === 0) return null;
@@ -339,6 +378,41 @@ export default function GoldCurvePage() {
   const silverShape = classifyCurve(silver, "today");
   const goldRegime = regimeTag(gold, "today");
   const silverRegime = regimeTag(silver, "today");
+  // ===== 3-day momentum from front-month history (noise-filtered) =====
+const historyOk = !historyLoading && !historyError && history && history.length > 0;
+
+const goldNow = historyOk ? history[history.length - 1]?.gold : null;
+const silverNow = historyOk ? history[history.length - 1]?.silver : null;
+
+const gold3dAgo = historyOk && history.length >= 4 ? history[history.length - 4]?.gold : null;
+const silver3dAgo = historyOk && history.length >= 4 ? history[history.length - 4]?.silver : null;
+
+const goldSince3d = percentChange(gold3dAgo, goldNow);     // percent
+const silverSince3d = percentChange(silver3dAgo, silverNow); // percent
+
+// Ignore zones (noise bands) — tweak anytime
+const GOLD_IGNORE_3D = 0.30;   // percent
+const SILVER_IGNORE_3D = 0.75; // percent
+
+const goldSince3dIsSignal = goldSince3d != null && Math.abs(goldSince3d) >= GOLD_IGNORE_3D;
+const silverSince3dIsSignal = silverSince3d != null && Math.abs(silverSince3d) >= SILVER_IGNORE_3D;
+
+// ===== Daily summary string =====
+const dailySummary = dailyAutoSummary({
+  hasPrior,
+  goldRegime,
+  silverRegime,
+  goldFrontStress,
+  silverFrontStress,
+  goldSlope_0_1,
+  silverSlope_0_1,
+  goldSince3d,
+  silverSince3d,
+  goldSince3dIsSignal,
+  silverSince3dIsSignal,
+  macro,
+});
+
 // ===== Daily Checklist (computed) =====
 const goldDriver = moveDriverLabel(goldSlope_0_1, goldSlope_3_12, 1.5);
 const silverDriver = moveDriverLabel(silverSlope_0_1, silverSlope_3_12, 1.5);
@@ -383,7 +457,23 @@ const dollarDelta =
     </span>
   )}
 </div>
-      
+ {/* ===== Daily Auto Summary ===== */}
+<div
+  style={{
+    border: "1px solid #ddd",
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 12,
+    background: "#fafafa",
+    maxWidth: 920,
+  }}
+>
+  <div style={{ fontWeight: 700, marginBottom: 6 }}>Daily Auto Summary</div>
+  <div style={{ fontSize: 13, color: "#333", lineHeight: "18px" }}>
+    {dailySummary}
+  </div>
+</div>
+     
 
       {hasPrior && (
         <div style={{ marginBottom: 10, color: "#666", fontSize: 13 }}>
