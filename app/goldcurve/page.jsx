@@ -93,8 +93,9 @@ function WrappedLegend(props) {
         flexWrap: "wrap",
         justifyContent: "center",
         gap: 14,
-        paddingTop: 28,
-        lineHeight: "18px",
+        paddingTop: 8,
+        paddingBottom: 10,
+        lineHeight: "16px",
       }}
     >
       {payload.map((entry) => (
@@ -110,11 +111,17 @@ function WrappedLegend(props) {
               display: "inline-block",
             }}
           />
-          <span style={{ fontSize: 12, color: "#333" }}>{entry.value}</span>
+          <span style={{ fontSize: 13, color: "#333" }}>{entry.value}</span>
         </div>
       ))}
     </div>
   );
+}
+function deltaAt(points, tenor) {
+  const today = priceAt(points, tenor, "today");
+  const prior = priceAt(points, tenor, "prior");
+  if (today == null || prior == null) return null;
+  return today - prior;
 }
 
 export default function GoldCurvePage() {
@@ -180,6 +187,11 @@ export default function GoldCurvePage() {
   const curves = buildCurves(data);
   const gold = curves.GOLD || [];
   const silver = curves.SILVER || [];
+  const goldDelta0 = deltaAt(gold, 0);
+  const goldDelta12 = deltaAt(gold, 12);
+  const silverDelta0 = deltaAt(silver, 0);
+  const silverDelta12 = deltaAt(silver, 12);
+
 
   const tenors = Array.from(
     new Set([
@@ -232,6 +244,15 @@ export default function GoldCurvePage() {
           </span>
         )}
       </div>
+{hasPrior && (
+  <div style={{ marginTop: 6, marginBottom: 12, color: "#555", fontSize: 13 }}>
+    <strong>Curve Change (Today − Prior):</strong>{" "}
+    Gold 0m {formatNumber(goldDelta0, 1)} |{" "}
+    Gold 12m {formatNumber(goldDelta12, 1)} |{" "}
+    Silver 0m {formatNumber(silverDelta0, 2)} |{" "}
+    Silver 12m {formatNumber(silverDelta12, 2)}
+  </div>
+)}
 
       {/* Macro panel */}
       <div
@@ -341,14 +362,14 @@ export default function GoldCurvePage() {
             data={curveChartData}
             margin={{ top: 10, right: 55, bottom: 95, left: 60 }} // more bottom for legend + axis label
           >
-            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-
+          <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.2} />
+          
             <XAxis
               dataKey="tenor"
               label={{
                 value: "Tenor (Months)",
-                position: "insideBottom",
-                dy: 18, // pushes axis label down below tick labels
+                position: "bottom",
+                offset: 15,
               }}
               tick={{ fontSize: 12 }}
             />
@@ -358,6 +379,7 @@ export default function GoldCurvePage() {
               yAxisId="left"
               domain={goldDomain}
               tick={{ fontSize: 12 }}
+              tickCount={5}
               label={{
                 value: "Gold",
                 angle: -90,
@@ -372,6 +394,7 @@ export default function GoldCurvePage() {
               orientation="right"
               domain={silverDomain}
               tick={{ fontSize: 12 }}
+              tickCount={5}
               label={{
                 value: "Silver",
                 angle: 90,
