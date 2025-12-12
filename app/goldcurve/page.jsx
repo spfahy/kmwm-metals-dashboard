@@ -817,36 +817,38 @@ Silver: <strong>{formatNumber(silverSlope_0_1, 2)} /mo</strong>{" "}
           </div>
         </>
       )}
+{/* ====== RAW JSON TOGGLE ====== */}
+<div>
+  <button
+    onClick={() => setShowRaw((v) => !v)}
+    style={{
+      padding: "6px 10px",
+      borderRadius: 6,
+      border: "1px solid #ccc",
+      background: "#f7f7f7",
+      cursor: "pointer",
+      marginBottom: 8,
+    }}
+  >
+    {showRaw ? "Hide raw JSON" : "Show raw JSON"}
+  </button>
 
-      {/* RAW JSON TOGGLE */}
-      <button
-        onClick={() => setShowRaw((v) => !v)}
-        style={{
-          padding: "6px 10px",
-          borderRadius: 6,
-          border: "1px solid #ccc",
-          background: "#f7f7f7",
-          cursor: "pointer",
-          marginBottom: 8,
-        }}
-      >
-        {showRaw ? "Hide raw JSON" : "Show raw JSON"}
-      </button>
+  {showRaw && (
+    <pre
+      style={{
+        background: "#f4f4f4",
+        padding: 12,
+        borderRadius: 8,
+        fontSize: 11,
+        marginTop: 8,
+        overflowX: "auto",
+      }}
+    >
+      {JSON.stringify(data, null, 2)}
+    </pre>
+  )}
+</div>
+   );
+  }
 
-      {showRaw && (
-        <pre
-          style={{
-            background: "#f4f4f4",
-            padding: 12,
-            borderRadius: 8,
-            fontSize: 11,
-            marginTop: 8,
-            overflowX: "auto",
-          }}
-        >
-          {JSON.stringify(data, null, 2)}
-        </pre>
-      )}
-    </div>
-  );
-}
+    
