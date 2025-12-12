@@ -452,7 +452,15 @@ export default function GoldCurvePage() {
           >
       <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.2} />
 
-<ReferenceArea x1={0} x2={3} fill="#000" fillOpacity={0.08} />
+<ReferenceArea
+  x1={0}
+  x2={3}
+  yAxisId="left"
+  fill="#ff0000"
+  fillOpacity={0.15}
+  strokeOpacity={0}
+/>
+
 
 <XAxis
   dataKey="tenor"
