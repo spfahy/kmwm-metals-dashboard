@@ -69,6 +69,17 @@ function regimeTag(points, which = "today") {
  * - Ignores null/undefined/NaN
  * - Adds padding so the line doesn't touch the chart frame
  */
+function slopeLabel(slope, flatThreshold = 1) {
+  if (slope == null) return "No data";
+  if (slope > flatThreshold) return "Steepening";
+  if (slope < -flatThreshold) return "Inverting";
+  return "Flat";
+}
+
+function computeDomain(values, padPct = 0.02) {
+  ...
+}
+
 function CurveTooltip({ active, payload, label }) {
   if (!active || !payload || payload.length === 0) return null;
 
@@ -298,6 +309,8 @@ export default function GoldCurvePage() {
   const silverSlope_1_3 = segmentSlope(silver, 1, 3, "today");
   const silverSlope_3_12 = segmentSlope(silver, 3, 12, "today");
   const silverSlope_total = segmentSlope(silver, 0, 12, "today");
+  const goldSlopeLabel = slopeLabel(goldSlope_total, 2);
+  const silverSlopeLabel = slopeLabel(silverSlope_total, 0.1);
 
   const goldShape = classifyCurve(gold, "today");
   const silverShape = classifyCurve(silver, "today");
