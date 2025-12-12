@@ -851,14 +851,72 @@ export default function GoldCurvePage() {
       const inflectionDate = maxInflectionDate(history, ["gold", "silver"]);
 
       <h3>Front-Month History (Gold vs Silver)</h3>
-      {historyLoading && (
-        <div style={{ padding: 8 }}>Loading front-month history…</div>
-      )}
-      {historyError && (
-        <div style={{ padding: 8, color: "red" }}>
-          Error loading history: {historyError}
-        </div>
-      )}
+    {!historyLoading && !historyError && history && history.length > 0 && (
+  <>
+    <div style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>
+      Since low:{" "}
+      <strong>
+        Gold {goldSinceLow == null ? "—" : `${goldSinceLow.toFixed(2)}%`}
+      </strong>
+      {"  |  "}
+      <strong>
+        Silver {silverSinceLow == null ? "—" : `${silverSinceLow.toFixed(2)}%`}
+      </strong>
+      {inflectionDate ? (
+        <span style={{ marginLeft: 12, color: "#888" }}>
+          Inflection: <strong>{inflectionDate}</strong>
+        </span>
+      ) : null}
+    </div>
+
+    <div style={{ width: "100%", height: 320, marginBottom: 24 }}>
+      <ResponsiveContainer>
+        <LineChart data={history}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="date" />
+
+          {inflectionDate ? (
+            <ReferenceLine
+              x={inflectionDate}
+              stroke="#999"
+              strokeDasharray="4 4"
+              label={{
+                value: "Inflection",
+                position: "top",
+                fill: "#777",
+                fontSize: 12,
+              }}
+            />
+          ) : null}
+
+          <YAxis yAxisId="left" />
+          <YAxis yAxisId="right" orientation="right" />
+
+          <Tooltip />
+          <Legend />
+
+          <Line
+            yAxisId="left"
+            type="monotone"
+            dataKey="gold"
+            name="Gold Front-Month"
+            stroke="#d4af37"
+            dot={false}
+          />
+          <Line
+            yAxisId="right"
+            type="monotone"
+            dataKey="silver"
+            name="Silver Front-Month"
+            stroke="#ff4d4f"
+            dot={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  </>
+)}
+
      {!historyLoading && !historyError && history && history.length > 0 && (
   <>
     <div style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>
