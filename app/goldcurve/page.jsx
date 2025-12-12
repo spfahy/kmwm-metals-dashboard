@@ -815,14 +815,14 @@ export default function GoldCurvePage() {
 
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="date" />
-              <YAxis
+           <YAxis
   yAxisId="left"
-  Gold axis: domain={computeDomain(history.map(d => d.gold))}
-  Silver axis: domain={computeDomain(history.map(d => d.silver))}
+  domain={computeDomain(history.map(d => d.gold))}
   tick={{ fontSize: 12 }}
   tickCount={5}
   label={{ value: "Gold", angle: -90, position: "insideLeft", dx: -10 }}
 />
+
 
 <YAxis
   yAxisId="right"
