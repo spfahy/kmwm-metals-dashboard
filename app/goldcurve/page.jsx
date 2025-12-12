@@ -433,18 +433,6 @@ const dollarDelta =
     ? Number(macro.dollarIndex) - Number(macro.dollarIndexPrior)
     : null;
 
-  // ✅ FIX: history-derived constants MUST be computed here (NOT inside JSX)
-  const historyOk =
-    !historyLoading && !historyError && history && history.length > 0;
-
-  const historyGoldDomain = historyOk
-    ? computeDomain(history.map((d) => d.gold))
-    : ["auto", "auto"];
-
-  const historySilverDomain = historyOk
-    ? computeDomain(history.map((d) => d.silver))
-    : ["auto", "auto"];
-
   return (
     <div style={{ padding: 32, fontFamily: "Arial, sans-serif" }}>
       <h1 style={{ marginBottom: 8 }}>Gold &amp; Silver Term Structure</h1>
