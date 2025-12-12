@@ -271,6 +271,25 @@ function deltaAt(points, tenor) {
   if (today == null || prior == null) return null;
   return today - prior;
 }
+function formatDate(value) {
+  if (!value) return "—";
+
+  const d = new Date(value);
+
+  // If Date parsing fails, fall back to the raw string (or date part)
+  if (Number.isNaN(d.getTime())) {
+    const s = String(value);
+    return s.includes("T") ? s.split("T")[0] : s;
+  }
+
+  // IMPORTANT: lock to UTC so you don't get "Dec 11" when you meant "Dec 12"
+  return d.toLocaleDateString("en-US", {
+    timeZone: "UTC",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
 
 export default function GoldCurvePage() {
   const [data, setData] = useState(null);
