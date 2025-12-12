@@ -10,6 +10,7 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  ReferenceArea,
 } from "recharts";
 
 function buildCurves(data) {
@@ -363,7 +364,8 @@ export default function GoldCurvePage() {
             margin={{ top: 10, right: 55, bottom: 95, left: 60 }} // more bottom for legend + axis label
           >
           <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.2} />
-          
+          <ReferenceArea x1={0} x2={3} fillOpacity={0.06} />
+
             <XAxis
               dataKey="tenor"
               label={{
