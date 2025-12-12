@@ -10,8 +10,9 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ReferenceArea,
+  ReferenceLine,
 } from "recharts";
+
 
 function buildCurves(data) {
   const curves = data?.curves ?? [];
@@ -150,6 +151,50 @@ function computeDomain(values, padPct = 0.02) {
   const pad = range * padPct;
 
   return [Math.floor(min - pad), Math.ceil(max + pad)];
+}
+/**
+* Custom legend that WRAPS cleanly (no overlap).
+* This is the fix for your legend writing over itself.
+*/
+function percentChange(from, to) {
+  if (from == null || to == null || from === 0) return null;
+  return ((to - from) / from) * 100;
+}
+
+function minByKey(arr, key) {
+  let best = null;
+  for (const x of arr || []) {
+    const v = x?.[key];
+    if (v == null) continue;
+    if (!best || v < best[key]) best = x;
+  }
+  return best;
+}
+
+function maxInflectionDate(arr, keys = ["gold", "silver"]) {
+  let best = null;
+  let bestScore = -Infinity;
+
+  for (let i = 1; i < (arr || []).length; i++) {
+    const prev = arr[i - 1];
+    const cur = arr[i];
+    if (!prev || !cur) continue;
+
+    let score = 0;
+    for (const k of keys) {
+      const a = prev[k];
+      const b = cur[k];
+      if (a == null || b == null) continue;
+      score += Math.abs(b - a);
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      best = cur?.date;
+    }
+  }
+
+  return best;
 }
 
 /**
