@@ -530,11 +530,20 @@ const dollarDelta =
 
     <div style={{ color: "#555" }}>2) Front-End Stress (0→1m slope)</div>
     <div>
-      Gold: <strong>{formatNumber(goldSlope_0_1, 2)}</strong> /mo
-      {goldFrontStress ? <strong style={{ color: "#b00020" }}>ALERT</strong> : <span style={{ color: "#2e7d32" }}>Normal</span>}
-      {"  "} | Silver: <strong>{formatNumber(silverSlope_0_1, 2)}</strong> /mo
-      {silverFrontStress ? <strong style={{ color: "#b00020" }}>ALERT</strong> : <span style={{ color: "#2e7d32" }}>Normal</span>}
-    </div>
+  Gold: <strong>{formatNumber(goldSlope_0_1, 2)} /mo</strong>{" "}
+{goldFrontStress ? (
+  <strong style={{ color: "#b00020" }}>ALERT</strong>
+) : (
+  <span style={{ color: "#2e7d32", fontWeight: 600 }}>Normal</span>
+)}
+{" "} |{" "}
+Silver: <strong>{formatNumber(silverSlope_0_1, 2)} /mo</strong>{" "}
+{silverFrontStress ? (
+  <strong style={{ color: "#b00020" }}>ALERT</strong>
+) : (
+  <span style={{ color: "#2e7d32", fontWeight: 600 }}>Normal</span>
+)}
+
 
     <div style={{ color: "#555" }}>3) Front vs Back Driver</div>
     <div>
