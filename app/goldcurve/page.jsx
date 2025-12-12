@@ -1034,6 +1034,5 @@ export default function GoldCurvePage() {
           {JSON.stringify(data, null, 2)}
         </pre>
       )}
-    </div>
-  );
+      );
 }
