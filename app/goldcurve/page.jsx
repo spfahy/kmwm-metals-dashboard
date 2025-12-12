@@ -525,6 +525,12 @@ export default function GoldCurvePage() {
       </table>
 
       {/* Front-month history */}
+     {history && history.length > 0 && (
+  <div style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>
+    Showing last <strong>{history.length}</strong> days (updates each morning)
+  </div>
+)}
+
       <h3>Front-Month History (Gold vs Silver)</h3>
 
       {historyLoading && <div style={{ padding: 8 }}>Loading front-month history…</div>}
