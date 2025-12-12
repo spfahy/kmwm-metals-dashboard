@@ -580,10 +580,10 @@ Silver: <strong>{formatNumber(silverSlope_0_1, 2)} /mo</strong>{" "}
   </div>
 
   <div style={{ marginTop: 10, fontSize: 12, color: "#777" }}>
-    Ignore zones (noise bands): Gold ±0.30% (3-day), Silver ±0.75% (3-day). Alerts are only for front-end stress thresholds.
+    Ignore zones (noise bands): Gold ±0.30% (3-day), Silver ±0.75% (3-day). 
+    Alerts are only for front-end stress thresholds.
   </div>
-</div>
-
+    </div>
       {/* Macro panel */}
       <div
         style={{
