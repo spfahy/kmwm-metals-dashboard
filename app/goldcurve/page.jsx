@@ -27,16 +27,7 @@ function formatNumber(v, digits = 2) {
   return Number(v).toFixed(digits);
 }
 
-function formatDate(value) {
-  if (!value) return "—";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
-  return d.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
+
 
 function priceAt(points, tenor, which = "today") {
   const p = points.find((x) => x.tenorMonths === tenor);
