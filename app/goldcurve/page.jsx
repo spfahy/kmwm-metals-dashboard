@@ -450,18 +450,24 @@ export default function GoldCurvePage() {
             data={curveChartData}
             margin={{ top: 10, right: 55, bottom: 95, left: 60 }} // more bottom for legend + axis label
           >
-          <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.2} />
-          <ReferenceArea x1={0} x2={3} fillOpacity={0.06} />
+      <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.2} />
 
-            <XAxis
-              dataKey="tenor"
-              label={{
-                value: "Tenor (Months)",
-                position: "bottom",
-                offset: 15,
-              }}
-              tick={{ fontSize: 12 }}
-            />
+<ReferenceArea x1={0} x2={3} fill="#000" fillOpacity={0.08} />
+
+<XAxis
+  dataKey="tenor"
+  type="number"
+  domain={[0, 12]}
+  allowDecimals={false}
+  label={{
+    value: "Tenor (Months)",
+    position: "bottom",
+    offset: 15,
+  }}
+  tick={{ fontSize: 12 }}
+/>
+
+
 
             {/* Left axis for Gold (tight scale) */}
             <YAxis
