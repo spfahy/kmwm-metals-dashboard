@@ -61,7 +61,7 @@ function regimeTag(points, which = "today") {
   const diff = p12 - p0;
   if (diff > 15) return { label: "Contango", detail: "upward carry" };
   if (diff < -15) return { label: "Backwardation", detail: "front-end stress" };
-  return { label: "Flat", detail: "neutral carry" };
+  return { label: "Flat", detail: "no meaningful carry" };
 }
 
 function slopeLabel(slope, flatThreshold = 1) {
@@ -530,9 +530,9 @@ const dollarDelta =
 
     <div style={{ color: "#555" }}>2) Front-End Stress (0→1m slope)</div>
     <div>
-      Gold: <strong>{formatNumber(goldSlope_0_1, 2)}</strong>{" "}
+      Gold: <strong>{formatNumber(goldSlope_0_1, 2)}</strong> /mo
       {goldFrontStress ? <strong style={{ color: "#b00020" }}>ALERT</strong> : <span style={{ color: "#2e7d32" }}>Normal</span>}
-      {"  "} | Silver: <strong>{formatNumber(silverSlope_0_1, 2)}</strong>{" "}
+      {"  "} | Silver: <strong>{formatNumber(silverSlope_0_1, 2)}</strong> /mo
       {silverFrontStress ? <strong style={{ color: "#b00020" }}>ALERT</strong> : <span style={{ color: "#2e7d32" }}>Normal</span>}
     </div>
 
@@ -709,7 +709,7 @@ const dollarDelta =
             Shape: <strong>{goldShape}</strong>
           </div>
           <div style={{ fontSize: 12, color: "#555" }}>
-            0→1m: {formatNumber(goldSlope_0_1, 2)} | 1→3m: {formatNumber(goldSlope_1_3, 2)} | 3→12m: {formatNumber(goldSlope_3_12, 2)} | 0→12m: {formatNumber(goldSlope_total, 2)}
+            0→1m slope: {formatNumber(goldSlope_0_1, 2)}/mo | 1→3m slope: {formatNumber(goldSlope_1_3, 2)}/mo | 3→12m: {formatNumber(goldSlope_3_12, 2)} | 0→12m: {formatNumber(goldSlope_total, 2)}
           </div>
         </div>
 
@@ -719,7 +719,7 @@ const dollarDelta =
             Shape: <strong>{silverShape}</strong>
           </div>
           <div style={{ fontSize: 12, color: "#555" }}>
-            0→1m: {formatNumber(silverSlope_0_1, 2)} | 1→3m: {formatNumber(silverSlope_1_3, 2)} | 3→12m: {formatNumber(silverSlope_3_12, 2)} | 0→12m: {formatNumber(silverSlope_total, 2)}
+            0→1m slope: {formatNumber(silverSlope_0_1, 2)}/mo | 1→3m slope: {formatNumber(silverSlope_1_3, 2)}/mo | 3→12m: {formatNumber(silverSlope_3_12, 2)} | 0→12m: {formatNumber(silverSlope_total, 2)}
           </div>
         </div>
       </div>
