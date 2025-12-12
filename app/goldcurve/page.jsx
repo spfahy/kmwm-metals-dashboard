@@ -154,6 +154,40 @@ function computeDomain(values, padPct = 0.02) {
   const pad = range * padPct;
   return [Math.floor(min - pad), Math.ceil(max + pad)];
 }
+function safePctChange(from, to) {
+  if (from == null || to == null || Number(from) === 0) return null;
+  return ((Number(to) - Number(from)) / Number(from)) * 100;
+}
+
+function momentumLabel(historyArr, key, lookbackDays = 3, noiseThresholdPct = 0.3) {
+  // Needs at least lookbackDays+1 points: e.g., 4 points for 3-day lookback
+  if (!historyArr || historyArr.length < lookbackDays + 1) {
+    return { label: "Insufficient history", pct: null, tag: "N/A" };
+  }
+
+  const last = historyArr[historyArr.length - 1]?.[key];
+  const prior = historyArr[historyArr.length - 1 - lookbackDays]?.[key];
+
+  const pct = safePctChange(prior, last);
+  if (pct == null) return { label: "No data", pct: null, tag: "N/A" };
+
+  const absPct = Math.abs(pct);
+  const tag = absPct < noiseThresholdPct ? "Noise" : "Signal";
+
+  const dir = pct > 0 ? "Up" : pct < 0 ? "Down" : "Flat";
+  return { label: `${dir} (${tag})`, pct, tag };
+}
+
+function moveDriverLabel(frontSlope, backSlope, ratio = 1.5) {
+  if (frontSlope == null || backSlope == null) return "No data";
+  const f = Math.abs(frontSlope);
+  const b = Math.abs(backSlope);
+
+  if (f > b * ratio) return "Front-led";
+  if (b > f * ratio) return "Back-led";
+  return "Mixed";
+}
+
 
 function WrappedLegend({ payload }) {
   if (!payload || payload.length === 0) return null;
@@ -305,6 +339,25 @@ export default function GoldCurvePage() {
   const silverShape = classifyCurve(silver, "today");
   const goldRegime = regimeTag(gold, "today");
   const silverRegime = regimeTag(silver, "today");
+// ===== Daily Checklist (computed) =====
+const goldDriver = moveDriverLabel(goldSlope_0_1, goldSlope_3_12, 1.5);
+const silverDriver = moveDriverLabel(silverSlope_0_1, silverSlope_3_12, 1.5);
+
+// Momentum (3-day lookback) with fixed "ignore zone" thresholds
+// Gold: 0.30% noise band, Silver: 0.75% noise band
+const goldMom3 = momentumLabel(history || [], "gold", 3, 0.30);
+const silverMom3 = momentumLabel(history || [], "silver", 3, 0.75);
+
+// Macro deltas vs prior (if your API provides prior fields)
+const real10yDelta =
+  macro?.real10y != null && macro?.real10yPrior != null
+    ? Number(macro.real10y) - Number(macro.real10yPrior)
+    : null;
+
+const dollarDelta =
+  macro?.dollarIndex != null && macro?.dollarIndexPrior != null
+    ? Number(macro.dollarIndex) - Number(macro.dollarIndexPrior)
+    : null;
 
   // ✅ FIX: history-derived constants MUST be computed here (NOT inside JSX)
   const historyOk =
@@ -353,6 +406,72 @@ export default function GoldCurvePage() {
           {silverFrontStress && <span>Silver 0→1m</span>}
         </div>
       )}
+{/* ===== Daily Checklist ===== */}
+<div
+  style={{
+    border: "1px solid #ddd",
+    borderRadius: 10,
+    padding: 14,
+    marginTop: 14,
+    marginBottom: 18,
+    background: "#fafafa",
+  }}
+>
+  <div style={{ fontWeight: 700, marginBottom: 10 }}>Daily Checklist</div>
+
+  <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", rowGap: 8, columnGap: 12 }}>
+    <div style={{ color: "#555" }}>1) Curve Regime (12m − 0m)</div>
+    <div>
+      Gold: <strong>{goldRegime.label}</strong> <span style={{ color: "#777" }}>({goldRegime.detail})</span>
+      {"  "} | Silver: <strong>{silverRegime.label}</strong> <span style={{ color: "#777" }}>({silverRegime.detail})</span>
+    </div>
+
+    <div style={{ color: "#555" }}>2) Front-End Stress (0→1m slope)</div>
+    <div>
+      Gold: <strong>{formatNumber(goldSlope_0_1, 2)}</strong>{" "}
+      {goldFrontStress ? <strong style={{ color: "#b00020" }}>ALERT</strong> : <span style={{ color: "#2e7d32" }}>Normal</span>}
+      {"  "} | Silver: <strong>{formatNumber(silverSlope_0_1, 2)}</strong>{" "}
+      {silverFrontStress ? <strong style={{ color: "#b00020" }}>ALERT</strong> : <span style={{ color: "#2e7d32" }}>Normal</span>}
+    </div>
+
+    <div style={{ color: "#555" }}>3) Front vs Back Driver</div>
+    <div>
+      Gold: <strong>{goldDriver}</strong>{"  "} | Silver: <strong>{silverDriver}</strong>
+    </div>
+
+    <div style={{ color: "#555" }}>4) Front-Month Momentum (3-day)</div>
+    <div>
+      Gold: <strong>{goldMom3.label}</strong>
+      {goldMom3.pct != null && (
+        <span style={{ color: "#777" }}>
+          {" "}
+          ({goldMom3.pct >= 0 ? "+" : ""}
+          {goldMom3.pct.toFixed(2)}%)
+        </span>
+      )}
+      {"  "} | Silver: <strong>{silverMom3.label}</strong>
+      {silverMom3.pct != null && (
+        <span style={{ color: "#777" }}>
+          {" "}
+          ({silverMom3.pct >= 0 ? "+" : ""}
+          {silverMom3.pct.toFixed(2)}%)
+        </span>
+      )}
+    </div>
+
+    <div style={{ color: "#555" }}>5) Macro Check (vs prior)</div>
+    <div>
+      Real 10-Year Yield:{" "}
+      <strong>{real10yDelta == null ? "N/A" : (real10yDelta >= 0 ? "+" : "") + real10yDelta.toFixed(2) + " pts"}</strong>
+      {"  "} | Dollar Index:{" "}
+      <strong>{dollarDelta == null ? "N/A" : (dollarDelta >= 0 ? "+" : "") + dollarDelta.toFixed(2)}</strong>
+    </div>
+  </div>
+
+  <div style={{ marginTop: 10, fontSize: 12, color: "#777" }}>
+    Ignore zones (noise bands): Gold ±0.30% (3-day), Silver ±0.75% (3-day). Alerts are only for front-end stress thresholds.
+  </div>
+</div>
 
       {/* Macro panel */}
       <div
