@@ -817,7 +817,8 @@ export default function GoldCurvePage() {
               <XAxis dataKey="date" />
               <YAxis
   yAxisId="left"
-  domain={["auto", "auto"]}
+  Gold axis: domain={computeDomain(history.map(d => d.gold))}
+  Silver axis: domain={computeDomain(history.map(d => d.silver))}
   tick={{ fontSize: 12 }}
   tickCount={5}
   label={{ value: "Gold", angle: -90, position: "insideLeft", dx: -10 }}
@@ -826,7 +827,7 @@ export default function GoldCurvePage() {
 <YAxis
   yAxisId="right"
   orientation="right"
-  domain={["auto", "auto"]}
+  domain={computeDomain(history.map(d => d.silver))}
   tick={{ fontSize: 12 }}
   tickCount={5}
   label={{ value: "Silver", angle: 90, position: "insideRight", dx: 10 }}
