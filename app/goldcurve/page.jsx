@@ -842,6 +842,14 @@ export default function GoldCurvePage() {
       </table>
 
       {/* ====== FRONT-MONTH HISTORY CHART ====== */}
+      const goldLow = minByKey(history, "gold");
+      const silverLow = minByKey(history, "silver");
+      const goldLast = history?.[history.length - 1]?.gold ?? null;
+      const silverLast = history?.[history.length - 1]?.silver ?? null;
+      const goldSinceLow = percentChange(goldLow?.gold ?? null, goldLast);
+      const silverSinceLow = percentChange(silverLow?.silver ?? null, silverLast);
+      const inflectionDate = maxInflectionDate(history, ["gold", "silver"]);
+
       <h3>Front-Month History (Gold vs Silver)</h3>
       {historyLoading && (
         <div style={{ padding: 8 }}>Loading front-month history…</div>
@@ -851,8 +859,29 @@ export default function GoldCurvePage() {
           Error loading history: {historyError}
         </div>
       )}
-      {!historyLoading && !historyError && history && history.length > 0 && (
-        <div style={{ width: "100%", height: 320, marginBottom: 24 }}>
+     {!historyLoading && !historyError && history && history.length > 0 && (
+  <>
+    <div style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>
+      Since low:{" "}
+      <strong>
+        Gold {goldSinceLow == null ? "—" : `${goldSinceLow.toFixed(2)}%`}
+      </strong>
+      {"  |  "}
+      <strong>
+        Silver {silverSinceLow == null ? "—" : `${silverSinceLow.toFixed(2)}%`}
+      </strong>
+      {inflectionDate ? (
+        <span style={{ marginLeft: 12, color: "#888" }}>
+          Inflection: <strong>{inflectionDate}</strong>
+        </span>
+      ) : null}
+      </div>
+  </>
+)}
+
+
+    <div style={{ width: "100%", height: 320, marginBottom: 24 }}>
+
           <ResponsiveContainer>
             <LineChart
   data={history}
@@ -861,6 +890,20 @@ export default function GoldCurvePage() {
 
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="date" />
+              {inflectionDate ? (
+  <ReferenceLine
+    x={inflectionDate}
+    stroke="#999"
+    strokeDasharray="4 4"
+    label={{
+      value: "Inflection",
+      position: "top",
+      fill: "#777",
+      fontSize: 12,
+    }}
+  />
+) : null}
+
            <YAxis
   yAxisId="left"
   domain={computeDomain(history.map(d => d.gold))}
