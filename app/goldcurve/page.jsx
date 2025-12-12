@@ -293,6 +293,8 @@ export default function GoldCurvePage() {
   const goldSlope_total = segmentSlope(gold, 0, 12, "today");
 
   const silverSlope_0_1 = segmentSlope(silver, 0, 1, "today");
+  const goldFrontStress = goldSlope_0_1 != null && Math.abs(goldSlope_0_1) > 20;
+  const silverFrontStress = silverSlope_0_1 != null && Math.abs(silverSlope_0_1) > 1.25;
   const silverSlope_1_3 = segmentSlope(silver, 1, 3, "today");
   const silverSlope_3_12 = segmentSlope(silver, 3, 12, "today");
   const silverSlope_total = segmentSlope(silver, 0, 12, "today");
@@ -320,6 +322,13 @@ export default function GoldCurvePage() {
     <span style={{ color: "#888" }}>({goldRegime.detail})</span> |{" "}
     Silver {silverRegime.label}{" "}
     <span style={{ color: "#888" }}>({silverRegime.detail})</span>
+  </div>
+)}
+{(goldFrontStress || silverFrontStress) && (
+  <div style={{ marginBottom: 12, fontSize: 13 }}>
+    <strong style={{ color: "#b00020" }}>Front-End Stress:</strong>{" "}
+    {goldFrontStress && <span style={{ marginRight: 12 }}>Gold 0→1m</span>}
+    {silverFrontStress && <span>Silver 0→1m</span>}
   </div>
 )}
 
