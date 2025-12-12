@@ -333,6 +333,10 @@ export default function GoldCurvePage() {
     <span style={{ color: "#888" }}>({silverRegime.detail})</span>
   </div>
 )}
+      <div style={{ fontSize: 12, color: "#777", marginTop: 4, marginBottom: 10 }}>
+  Shaded area highlights front-end (0–3m) curve sensitivity
+</div>
+
 {(goldFrontStress || silverFrontStress) && (
   <div style={{ marginBottom: 12, fontSize: 13 }}>
     <strong style={{ color: "#b00020" }}>Front-End Stress:</strong>{" "}
@@ -456,8 +460,8 @@ export default function GoldCurvePage() {
   x1={0}
   x2={3}
   yAxisId="left"
-  fill="#ff0000"
-  fillOpacity={0.15}
+  fill="#000"
+  fillOpacity={0.10}
   strokeOpacity={0}
 />
 
