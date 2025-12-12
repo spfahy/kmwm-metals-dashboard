@@ -58,6 +58,61 @@ function classifyCurve(points, which = "today") {
  * - Ignores null/undefined/NaN
  * - Adds padding so the line doesn't touch the chart frame
  */
+function CurveTooltip({ active, payload, label }) {
+  if (!active || !payload || payload.length === 0) return null;
+
+  // payload entries come in as: goldToday, goldPrior, silverToday, silverPrior
+  const byKey = {};
+  for (const p of payload) {
+    byKey[p.dataKey] = p.value;
+  }
+
+  const gT = byKey.goldToday;
+  const gP = byKey.goldPrior;
+  const sT = byKey.silverToday;
+  const sP = byKey.silverPrior;
+
+  const goldDelta = gT != null && gP != null ? gT - gP : null;
+  const silverDelta = sT != null && sP != null ? sT - sP : null;
+
+  return (
+    <div
+      style={{
+        background: "white",
+        border: "1px solid #ddd",
+        borderRadius: 8,
+        padding: 10,
+        fontSize: 12,
+        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+      }}
+    >
+      <div style={{ fontWeight: 700, marginBottom: 6 }}>
+        Tenor: {label} months
+      </div>
+
+      <div style={{ marginBottom: 6 }}>
+        <div style={{ fontWeight: 600 }}>Gold</div>
+        <div>Today: {gT == null ? "—" : Number(gT).toFixed(1)}</div>
+        <div>Prior: {gP == null ? "—" : Number(gP).toFixed(1)}</div>
+        <div>
+          Change:{" "}
+          {goldDelta == null ? "—" : (goldDelta >= 0 ? "+" : "") + goldDelta.toFixed(1)}
+        </div>
+      </div>
+
+      <div>
+        <div style={{ fontWeight: 600 }}>Silver</div>
+        <div>Today: {sT == null ? "—" : Number(sT).toFixed(2)}</div>
+        <div>Prior: {sP == null ? "—" : Number(sP).toFixed(2)}</div>
+        <div>
+          Change:{" "}
+          {silverDelta == null ? "—" : (silverDelta >= 0 ? "+" : "") + silverDelta.toFixed(2)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function computeDomain(values, padPct = 0.02) {
   const clean = (values || []).filter(
     (v) => v !== null && v !== undefined && !Number.isNaN(Number(v))
@@ -405,7 +460,8 @@ export default function GoldCurvePage() {
               }}
             />
 
-            <Tooltip />
+            
+            <Tooltip content={<CurveTooltip />} />
 
            
             {/* GOLD: Today = thicker solid; Prior = thinner dashed */}
