@@ -76,28 +76,6 @@ function slopeLabel(slope, flatThreshold = 1) {
   return "Flat";
 }
 
-function computeDomain(values, padPct = 0.02) {
-  const clean = (values || []).filter(
-    (v) => v !== null && v !== undefined && !Number.isNaN(Number(v))
-  );
-  if (clean.length === 0) return ["auto", "auto"];
-
-  const min = Math.min(...clean);
-  const max = Math.max(...clean);
-
-  // If flat line (min == max), widen a bit so axis still renders nicely
-  if (min === max) {
-    const bump = Math.abs(min) * 0.01 || 1;
-    return [Math.floor(min - bump), Math.ceil(max + bump)];
-  }
-
-  const range = max - min;
-  const pad = range * padPct;
-
-  return [Math.floor(min - pad), Math.ceil(max + pad)];
-}
-
-
 function CurveTooltip({ active, payload, label }) {
   if (!active || !payload || payload.length === 0) return null;
 
