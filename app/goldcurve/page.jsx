@@ -12,6 +12,7 @@ import {
   ReferenceArea,
 } from "recharts";
 
+/* ===================== DATA HELPERS ===================== */
 function buildCurves(data) {
   const curves = Array.isArray(data?.curves) ? data.curves : [];
   const map = {};
@@ -23,12 +24,12 @@ function buildCurves(data) {
 }
 
 function formatNumber(v, digits = 2) {
-  if (v === null || v === undefined || Number.isNaN(v)) return "—";
+  if (v === null || v === undefined || Number.isNaN(Number(v))) return "—";
   return Number(v).toFixed(digits);
 }
 
 function priceAt(points, tenor, which = "today") {
-  const p = points.find((x) => x.tenorMonths === tenor);
+  const p = (points || []).find((x) => x.tenorMonths === tenor);
   if (!p) return null;
   return which === "prior" ? p.pricePrior : p.priceToday;
 }
@@ -88,7 +89,7 @@ function computeDomain(values, padPct = 0.02) {
   return [Math.floor(min - pad), Math.ceil(max + pad)];
 }
 
-function safePctChange(from, to) {
+function percentChange(from, to) {
   if (from == null || to == null || Number(from) === 0) return null;
   return ((Number(to) - Number(from)) / Number(from)) * 100;
 }
@@ -101,7 +102,7 @@ function momentumLabel(historyArr, key, lookbackDays = 3, noiseThresholdPct = 0.
   const last = historyArr[historyArr.length - 1]?.[key];
   const prior = historyArr[historyArr.length - 1 - lookbackDays]?.[key];
 
-  const pct = safePctChange(prior, last);
+  const pct = percentChange(prior, last);
   if (pct == null) return { label: "No data", pct: null, tag: "N/A" };
 
   const absPct = Math.abs(pct);
@@ -153,11 +154,6 @@ function formatDate(value) {
     day: "numeric",
     year: "numeric",
   });
-}
-
-function percentChange(from, to) {
-  if (from == null || to == null || from === 0) return null;
-  return ((to - from) / from) * 100;
 }
 
 /* ===================== UI HELPERS ===================== */
@@ -307,7 +303,9 @@ function CurveTooltip({ active, payload, label }) {
         <div>Prior: {sP == null ? "—" : Number(sP).toFixed(2)}</div>
         <div>
           Change:{" "}
-          {silverDelta == null ? "—" : (silverDelta >= 0 ? "+" : "") + silverDelta.toFixed(2)}
+          {silverDelta == null
+            ? "—"
+            : (silverDelta >= 0 ? "+" : "") + silverDelta.toFixed(2)}
         </div>
       </div>
     </div>
@@ -388,84 +386,9 @@ function metalAlert(points, metalName, frontStressAbsSlopeThreshold, decimals) {
   };
 }
 
-function dailyAutoSummary({
-  hasPrior,
-  goldRegime,
-  silverRegime,
-  goldFrontStress,
-  silverFrontStress,
-  goldSlope_0_1,
-  silverSlope_0_1,
-  goldSince3d,
-  silverSince3d,
-  goldSince3dIsSignal,
-  silverSince3dIsSignal,
-  macro,
-}) {
-  if (!hasPrior) {
-    return {
-      headline:
-        "Bottom line: Prior curve data is not available yet — today’s read is current curve shape and front-end stability only.",
-      bullets: [
-        `Carry: Gold ${goldRegime.label} (${goldRegime.detail}) | Silver ${silverRegime.label} (${silverRegime.detail})`,
-        `Front-end (0→1m): Gold ${
-          goldSlope_0_1 == null ? "—" : Number(goldSlope_0_1).toFixed(2)
-        } /mo | Silver ${
-          silverSlope_0_1 == null ? "—" : Number(silverSlope_0_1).toFixed(2)
-        } /mo`,
-      ],
-    };
-  }
-
-  const stressLine = `Stress: ${goldFrontStress ? "Gold ALERT" : "Gold Normal"} | ${
-    silverFrontStress ? "Silver ALERT" : "Silver Normal"
-  }`;
-
-  const momLine = `Momentum (3-day): Gold ${
-    goldSince3dIsSignal ? "Signal" : "Noise"
-  } ${
-    goldSince3d == null
-      ? "(—)"
-      : `(${goldSince3d >= 0 ? "+" : ""}${goldSince3d.toFixed(2)}%)`
-  } | Silver ${silverSince3dIsSignal ? "Signal" : "Noise"} ${
-    silverSince3d == null
-      ? "(—)"
-      : `(${silverSince3d >= 0 ? "+" : ""}${silverSince3d.toFixed(2)}%)`
-  }`;
-
-  const macroLine = macro
-    ? `Macro (vs prior): Real 10-year ${
-        macro.real10y != null && macro.real10yPrior != null
-          ? `${macro.real10y - macro.real10yPrior >= 0 ? "+" : ""}${(
-              macro.real10y - macro.real10yPrior
-            ).toFixed(2)} pts`
-          : "—"
-      } | Dollar index ${
-        macro.dollarIndex != null && macro.dollarIndexPrior != null
-          ? `${macro.dollarIndex - macro.dollarIndexPrior >= 0 ? "+" : ""}${(
-              macro.dollarIndex - macro.dollarIndexPrior
-            ).toFixed(2)}`
-          : "—"
-      }`
-    : "Macro (vs prior): —";
-
-  return {
-    headline: `Bottom line: Gold ${goldRegime.label.toLowerCase()} (${goldRegime.detail}); Silver ${silverRegime.label.toLowerCase()} (${silverRegime.detail}).`,
-    bullets: [
-      stressLine,
-      `Front-end (0→1m): Gold ${
-        goldSlope_0_1 == null ? "—" : Number(goldSlope_0_1).toFixed(2)
-      } /mo | Silver ${
-        silverSlope_0_1 == null ? "—" : Number(silverSlope_0_1).toFixed(2)
-      } /mo`,
-      momLine,
-      macroLine,
-    ],
-  };
-}
-
+/* ===================== PAGE ===================== */
 export default function GoldCurvePage() {
-  // ---- ALL HOOKS MUST RUN BEFORE ANY return() ----
+  // ✅ ALL hooks first (no early returns before hooks)
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -477,84 +400,70 @@ export default function GoldCurvePage() {
   const [showDetails, setShowDetails] = useState(false);
   const [showRawJson, setShowRawJson] = useState(false);
 
-  // Load curve
   useEffect(() => {
     let alive = true;
-
-    async function load() {
+    (async () => {
       try {
         setLoading(true);
-        setError(null);
-
         const res = await fetch("/api/goldcurve", { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw new Error(`Goldcurve API HTTP ${res.status}`);
         const json = await res.json();
-
-        // HARD VALIDATION: must include curves array
-        if (!json || !Array.isArray(json.curves)) {
-          throw new Error(`Invalid data shape from /api/goldcurve: ${JSON.stringify(json)}`);
-        }
-
         if (alive) setData(json);
-      } catch (err) {
-        if (alive) setError(err?.message || "Failed to load curve data");
+      } catch (e) {
+        if (alive) setError(String(e?.message || e));
       } finally {
         if (alive) setLoading(false);
       }
-    }
-
-    load();
+    })();
     return () => {
       alive = false;
     };
   }, []);
 
-  // Load history
   useEffect(() => {
     let alive = true;
-
-    async function loadHistory() {
+    (async () => {
       try {
         setHistoryLoading(true);
-        setHistoryError(null);
-
         const res = await fetch("/api/metals-history", { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw new Error(`Metals-history API HTTP ${res.status}`);
         const json = await res.json();
-
         const series = Array.isArray(json?.series) ? json.series : [];
         if (alive) setHistory(series);
-      } catch (err) {
-        if (alive) setHistoryError(err?.message || "Failed to load history");
+      } catch (e) {
+        if (alive) setHistoryError(String(e?.message || e));
       } finally {
         if (alive) setHistoryLoading(false);
       }
-    }
-
-    loadHistory();
+    })();
     return () => {
       alive = false;
     };
   }, []);
 
   const curves = useMemo(() => buildCurves(data), [data]);
+  const gold = curves.GOLD || [];
+  const silver = curves.SILVER || [];
 
-  // ---- RENDER GUARDS (AFTER HOOKS) ----
+  // ===== Render guards (AFTER hooks) =====
   if (loading) return <div style={{ padding: 24 }}>Loading gold curve…</div>;
-  if (error) {
+
+  if (error)
     return (
-      <pre style={{ padding: 24, color: "red", whiteSpace: "pre-wrap" }}>
-        {String(error)}
+      <pre style={{ padding: 24, color: "red", whiteSpace: "pre-wrap" }}>{String(error)}</pre>
+    );
+
+  if (!data || !Array.isArray(data.curves)) {
+    return (
+      <pre style={{ padding: 24 }}>
+        Invalid data shape:
+        {JSON.stringify(data, null, 2)}
       </pre>
     );
   }
-  if (!data) return <div style={{ padding: 24 }}>No data returned.</div>;
 
   const { asOfDate, priorDate, macro, stressStreak } = data;
   const hasPrior = !!priorDate;
-
-  const gold = curves.GOLD || [];
-  const silver = curves.SILVER || [];
 
   const tenors = Array.from(
     new Set([...gold.map((p) => p.tenorMonths), ...silver.map((p) => p.tenorMonths)])
@@ -605,48 +514,20 @@ export default function GoldCurvePage() {
   const goldCarryText =
     goldCarry_0_3 == null ? "—" : `${goldCarry_0_3 >= 0 ? "+" : ""}${goldCarry_0_3.toFixed(2)}`;
   const silverCarryText =
-    silverCarry_0_3 == null ? "—" : `${silverCarry_0_3 >= 0 ? "+" : ""}${silverCarry_0_3.toFixed(2)}`;
+    silverCarry_0_3 == null
+      ? "—"
+      : `${silverCarry_0_3 >= 0 ? "+" : ""}${silverCarry_0_3.toFixed(2)}`;
 
   const historyOk = !historyLoading && !historyError && Array.isArray(history) && history.length > 0;
 
   const historyGoldDomain = historyOk ? computeDomain(history.map((d) => d.gold)) : ["auto", "auto"];
   const historySilverDomain = historyOk ? computeDomain(history.map((d) => d.silver)) : ["auto", "auto"];
 
-  const goldNow = historyOk ? history[history.length - 1]?.gold : null;
-  const silverNow = historyOk ? history[history.length - 1]?.silver : null;
-
-  const gold3dAgo = historyOk && history.length >= 4 ? history[history.length - 4]?.gold : null;
-  const silver3dAgo = historyOk && history.length >= 4 ? history[history.length - 4]?.silver : null;
-
-  const goldSince3d = percentChange(gold3dAgo, goldNow);
-  const silverSince3d = percentChange(silver3dAgo, silverNow);
-
-  const GOLD_IGNORE_3D = 0.30;
-  const SILVER_IGNORE_3D = 0.75;
-
-  const goldSince3dIsSignal = goldSince3d != null && Math.abs(goldSince3d) >= GOLD_IGNORE_3D;
-  const silverSince3dIsSignal = silverSince3d != null && Math.abs(silverSince3d) >= SILVER_IGNORE_3D;
-
-  const dailySummary = dailyAutoSummary({
-    hasPrior,
-    goldRegime,
-    silverRegime,
-    goldFrontStress,
-    silverFrontStress,
-    goldSlope_0_1,
-    silverSlope_0_1,
-    goldSince3d,
-    silverSince3d,
-    goldSince3dIsSignal,
-    silverSince3dIsSignal,
-    macro,
-  });
+  const gold3d = momentumLabel(history || [], "gold", 3, 0.30);
+  const silver3d = momentumLabel(history || [], "silver", 3, 0.75);
 
   const goldDriver = moveDriverLabel(goldSlope_0_1, goldSlope_3_12, 1.5);
   const silverDriver = moveDriverLabel(silverSlope_0_1, silverSlope_3_12, 1.5);
-
-  const goldMom3 = momentumLabel(history || [], "gold", 3, 0.30);
-  const silverMom3 = momentumLabel(history || [], "silver", 3, 0.75);
 
   const real10yDelta =
     macro?.real10y != null && macro?.real10yPrior != null
@@ -663,9 +544,6 @@ export default function GoldCurvePage() {
 
   const dollarDeltaText =
     dollarDelta == null ? "N/A" : `${dollarDelta >= 0 ? "+" : ""}${dollarDelta.toFixed(2)}`;
-
-  const goldStressLabel = goldFrontStress ? "Front-End Stress" : "Normal";
-  const silverStressLabel = silverFrontStress ? "Front-End Stress" : "Normal";
 
   const goldAlert = metalAlert(gold, "Gold", 20, 2);
   const silverAlert = metalAlert(silver, "Silver", 1.25, 2);
@@ -748,8 +626,8 @@ export default function GoldCurvePage() {
         </Chip>
 
         <Chip>
-          Momentum (3-day): Gold <strong style={{ marginLeft: 6 }}>{goldMom3.label}</strong> | Silver{" "}
-          <strong style={{ marginLeft: 6 }}>{silverMom3.label}</strong>
+          Momentum (3-day): Gold <strong style={{ marginLeft: 6 }}>{gold3d.label}</strong> | Silver{" "}
+          <strong style={{ marginLeft: 6 }}>{silver3d.label}</strong>
         </Chip>
       </div>
 
@@ -762,17 +640,7 @@ export default function GoldCurvePage() {
         )}
       </div>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 12 }}>
-        <Chip>Regime: {goldRegime.label} / {silverRegime.label}</Chip>
-        <Chip>Front-end stress: Gold {goldStressLabel} | Silver {silverStressLabel}</Chip>
-        <Chip>Momentum (3-day): Gold {goldMom3.tag} | Silver {silverMom3.tag}</Chip>
-        <Chip>Macro Δ: Real 10-year {real10yDeltaText} | Dollar index {dollarDeltaText}</Chip>
-      </div>
-
-      <div style={{ fontSize: 12, color: "#777", marginBottom: 12 }}>
-        Shaded area highlights front-end (0–3m) curve sensitivity
-      </div>
-
+      {/* Alerts */}
       <div
         style={{
           display: "grid",
@@ -810,171 +678,7 @@ export default function GoldCurvePage() {
         </div>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))",
-          gap: 14,
-          marginBottom: 12,
-        }}
-      >
-        <Card title="Daily Auto Summary" right={hasPrior ? "Includes vs prior read" : "Prior not available"}>
-          <div style={{ fontSize: 13, color: "#333", lineHeight: "18px" }}>
-            <div style={{ fontWeight: 900, marginBottom: 8 }}>{dailySummary.headline}</div>
-
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-              {dailySummary.bullets.map((b, i) => (
-                <Chip key={i}>{b}</Chip>
-              ))}
-            </div>
-
-            <div style={{ marginTop: 10 }}>
-              <button
-                onClick={() => setShowDetails((v) => !v)}
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: 6,
-                  border: "1px solid #ccc",
-                  background: "#f7f7f7",
-                  cursor: "pointer",
-                }}
-              >
-                {showDetails ? "Hide details" : "Show details"}
-              </button>
-
-              {showDetails && (
-                <div style={{ marginTop: 10, fontSize: 12, color: "#555", lineHeight: "18px" }}>
-                  <div style={{ fontWeight: 800, marginBottom: 6 }}>Daily Summary Details</div>
-                  <div style={{ whiteSpace: "pre-wrap" }}>
-                    {dailySummary.bullets.map((b) => `• ${b}`).join("\n")}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </Card>
-
-        <Card title="Daily Checklist" right={hasPrior ? "Fast scan" : "Current curve only"}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "240px 1fr",
-              columnGap: 12,
-              rowGap: 8,
-              fontSize: 13,
-              lineHeight: "18px",
-            }}
-          >
-            <div style={{ color: "#555" }}>1) Curve Regime (12m − 0m)</div>
-            <div>
-              Gold: <strong>{goldRegime.label}</strong>{" "}
-              <span style={{ color: "#777" }}>({goldRegime.detail})</span> | Silver:{" "}
-              <strong>{silverRegime.label}</strong>{" "}
-              <span style={{ color: "#777" }}>({silverRegime.detail})</span>
-            </div>
-
-            <div style={{ color: "#555" }}>2) Front-End Stress (0→1m slope)</div>
-            <div>
-              Gold: <strong>{formatNumber(goldSlope_0_1, 2)} /mo</strong>{" "}
-              {goldFrontStress ? (
-                <strong style={{ color: ALERT_RED }}>ALERT</strong>
-              ) : (
-                <span style={{ color: "#2e7d32", fontWeight: 700 }}>Normal</span>
-              )}{" "}
-              | Silver: <strong>{formatNumber(silverSlope_0_1, 2)} /mo</strong>{" "}
-              {silverFrontStress ? (
-                <strong style={{ color: ALERT_RED }}>ALERT</strong>
-              ) : (
-                <span style={{ color: "#2e7d32", fontWeight: 700 }}>Normal</span>
-              )}
-            </div>
-
-            <div style={{ color: "#555" }}>3) Front vs Back Driver</div>
-            <div>
-              Gold: <strong>{goldDriver}</strong> | Silver: <strong>{silverDriver}</strong>
-            </div>
-
-            <div style={{ color: "#555" }}>4) Front-Month Momentum (3-day)</div>
-            <div>
-              Gold: <strong>{goldMom3.label}</strong>{" "}
-              {goldMom3.pct != null ? (
-                <span style={{ color: "#777" }}>
-                  ({goldMom3.pct >= 0 ? "+" : ""}
-                  {goldMom3.pct.toFixed(2)}%)
-                </span>
-              ) : null}{" "}
-              | Silver: <strong>{silverMom3.label}</strong>{" "}
-              {silverMom3.pct != null ? (
-                <span style={{ color: "#777" }}>
-                  ({silverMom3.pct >= 0 ? "+" : ""}
-                  {silverMom3.pct.toFixed(2)}%)
-                </span>
-              ) : null}
-            </div>
-
-            <div style={{ color: "#555" }}>5) Macro Check (vs prior)</div>
-            <div>
-              Real 10-year: <strong>{real10yDeltaText}</strong> | Dollar index:{" "}
-              <strong>{dollarDeltaText}</strong>
-            </div>
-          </div>
-
-          <div style={{ marginTop: 10, fontSize: 12, color: "#777" }}>
-            Ignore zones (noise bands): Gold ±0.30% (3-day), Silver ±0.75% (3-day).
-          </div>
-        </Card>
-      </div>
-
-      {hasPrior && (
-        <div style={{ marginBottom: 14 }}>
-          <Card title="Change Since Prior (Curve Segments)" right="Today slope minus prior slope">
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "140px 1fr 1fr",
-                rowGap: 10,
-                columnGap: 12,
-                fontSize: 13,
-              }}
-            >
-              <div style={{ fontWeight: 900, color: "#555" }} />
-              <div style={{ fontWeight: 900 }}>Gold</div>
-              <div style={{ fontWeight: 900 }}>Silver</div>
-
-              <div style={{ color: "#555" }}>0→1 month</div>
-              <div>
-                {formatNumber(goldSlopeChg_0_1, 2)} /mo{" "}
-                <span style={{ color: "#777" }}>({interpretSlope(goldSlopeChg_0_1)})</span>
-              </div>
-              <div>
-                {formatNumber(silverSlopeChg_0_1, 2)} /mo{" "}
-                <span style={{ color: "#777" }}>({interpretSlope(silverSlopeChg_0_1)})</span>
-              </div>
-
-              <div style={{ color: "#555" }}>1→3 months</div>
-              <div>
-                {formatNumber(goldSlopeChg_1_3, 2)} /mo{" "}
-                <span style={{ color: "#777" }}>({interpretSlope(goldSlopeChg_1_3)})</span>
-              </div>
-              <div>
-                {formatNumber(silverSlopeChg_1_3, 2)} /mo{" "}
-                <span style={{ color: "#777" }}>({interpretSlope(silverSlopeChg_1_3)})</span>
-              </div>
-
-              <div style={{ color: "#555" }}>3→12 months</div>
-              <div>
-                {formatNumber(goldSlopeChg_3_12, 2)} /mo{" "}
-                <span style={{ color: "#777" }}>({interpretSlope(goldSlopeChg_3_12)})</span>
-              </div>
-              <div>
-                {formatNumber(silverSlopeChg_3_12, 2)} /mo{" "}
-                <span style={{ color: "#777" }}>({interpretSlope(silverSlopeChg_3_12)})</span>
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
-
+      {/* Macro cards */}
       <div
         style={{
           display: "grid",
@@ -1002,24 +706,7 @@ export default function GoldCurvePage() {
               : null
           }
         />
-        <StatCard
-          label="Deficit flag"
-          value={macro?.deficitFlag ? "On" : "Off"}
-          subline={
-            hasPrior && macro?.deficitFlagPrior != null
-              ? `Prior: ${macro.deficitFlagPrior ? "On" : "Off"}`
-              : null
-          }
-        />
-        <StatCard
-          label="Gold front-month"
-          value={formatNumber(macro?.goldFrontMonth, 1)}
-          subline={
-            hasPrior && macro?.goldFrontMonthPrior != null
-              ? `Prior: ${formatNumber(macro.goldFrontMonthPrior, 1)}`
-              : null
-          }
-        />
+        <StatCard label="Driver" value={`Gold: ${goldDriver}`} subline={`Silver: ${silverDriver}`} />
       </div>
 
       <WrappedLegend payload={curveLegendPayload} />
@@ -1116,58 +803,13 @@ export default function GoldCurvePage() {
         </div>
       </div>
 
-      <h3>Term Structure (Gold vs Silver)</h3>
-      <table style={{ borderCollapse: "collapse", width: "100%", maxWidth: 900, marginBottom: 24 }}>
-        <thead>
-          <tr>
-            {["Tenor (months)", "Gold (Today)", "Gold (Prior)", "Silver (Today)", "Silver (Prior)"].map((h) => (
-              <th
-                key={h}
-                style={{
-                  borderBottom: "1px solid #ccc",
-                  padding: "6px 8px",
-                  textAlign: h === "Tenor (months)" ? "left" : "right",
-                }}
-              >
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {tenors.map((t) => (
-            <tr key={t}>
-              <td style={{ borderBottom: "1px solid #eee", padding: "4px 8px" }}>{t}</td>
-              <td style={{ borderBottom: "1px solid #eee", padding: "4px 8px", textAlign: "right" }}>
-                {formatNumber(priceAt(gold, t, "today"), 1)}
-              </td>
-              <td style={{ borderBottom: "1px solid #eee", padding: "4px 8px", textAlign: "right" }}>
-                {hasPrior ? formatNumber(priceAt(gold, t, "prior"), 1) : "—"}
-              </td>
-              <td style={{ borderBottom: "1px solid #eee", padding: "4px 8px", textAlign: "right" }}>
-                {formatNumber(priceAt(silver, t, "today"), 2)}
-              </td>
-              <td style={{ borderBottom: "1px solid #eee", padding: "4px 8px", textAlign: "right" }}>
-                {hasPrior ? formatNumber(priceAt(silver, t, "prior"), 2) : "—"}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <h3>Front-Month History (Gold vs Silver)</h3>
+      {historyLoading && <div style={{ padding: 8 }}>Loading front-month history…</div>}
+      {historyError && <div style={{ padding: 8, color: "red" }}>Error loading history: {historyError}</div>}
 
       {historyOk && (
         <>
-          <div style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>
-            Showing last <strong>{history.length}</strong> days
-          </div>
-
-          <h3>Front-Month History (Gold vs Silver)</h3>
-
-          {historyLoading && <div style={{ padding: 8 }}>Loading front-month history…</div>}
-          {historyError && <div style={{ padding: 8, color: "red" }}>Error loading history: {historyError}</div>}
-
           <WrappedLegend payload={historyLegendPayload} />
-
           <div style={{ width: "100%", height: 320, marginBottom: 24 }}>
             <ResponsiveContainer>
               <LineChart data={history} margin={{ top: 10, right: 55, bottom: 35, left: 60 }}>
@@ -1231,6 +873,56 @@ export default function GoldCurvePage() {
           </pre>
         )}
       </div>
+
+      {hasPrior && (
+        <div style={{ marginTop: 16 }}>
+          <Card title="Change Since Prior (Curve Segments)" right="Today slope minus prior slope">
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "140px 1fr 1fr",
+                rowGap: 10,
+                columnGap: 12,
+                fontSize: 13,
+              }}
+            >
+              <div style={{ fontWeight: 900, color: "#555" }} />
+              <div style={{ fontWeight: 900 }}>Gold</div>
+              <div style={{ fontWeight: 900 }}>Silver</div>
+
+              <div style={{ color: "#555" }}>0→1 month</div>
+              <div>
+                {formatNumber(goldSlopeChg_0_1, 2)} /mo{" "}
+                <span style={{ color: "#777" }}>({interpretSlope(goldSlopeChg_0_1)})</span>
+              </div>
+              <div>
+                {formatNumber(silverSlopeChg_0_1, 2)} /mo{" "}
+                <span style={{ color: "#777" }}>({interpretSlope(silverSlopeChg_0_1)})</span>
+              </div>
+
+              <div style={{ color: "#555" }}>1→3 months</div>
+              <div>
+                {formatNumber(goldSlopeChg_1_3, 2)} /mo{" "}
+                <span style={{ color: "#777" }}>({interpretSlope(goldSlopeChg_1_3)})</span>
+              </div>
+              <div>
+                {formatNumber(silverSlopeChg_1_3, 2)} /mo{" "}
+                <span style={{ color: "#777" }}>({interpretSlope(silverSlopeChg_1_3)})</span>
+              </div>
+
+              <div style={{ color: "#555" }}>3→12 months</div>
+              <div>
+                {formatNumber(goldSlopeChg_3_12, 2)} /mo{" "}
+                <span style={{ color: "#777" }}>({interpretSlope(goldSlopeChg_3_12)})</span>
+              </div>
+              <div>
+                {formatNumber(silverSlopeChg_3_12, 2)} /mo{" "}
+                <span style={{ color: "#777" }}>({interpretSlope(silverSlopeChg_3_12)})</span>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
