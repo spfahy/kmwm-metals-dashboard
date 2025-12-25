@@ -1,12 +1,12 @@
 export const metadata = {
-  title: "Metals Dashboard",
-  description: "Gold & Silver Futures Term Structure"
+  title: "KMWM Metals Dashboard",
+  description: "Gold & Silver curve dashboard",
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body style={{ fontFamily: "Arial, sans-serif", margin: 0, padding: 20 }}>
+      <body style={{ margin: 0, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial" }}>
         {children}
       </body>
     </html>
