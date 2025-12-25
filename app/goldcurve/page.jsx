@@ -535,9 +535,10 @@ useEffect(() => {
   const hasPrior = !!priorDate;
 
   const curves = useMemo(() => {
-  if (!data || !Array.isArray(data.curves)) return {};
+  if (!data?.curves) return {};
   return buildCurves(data);
 }, [data]);
+
 
   const gold = curves.GOLD || [];
   const silver = curves.SILVER || [];
