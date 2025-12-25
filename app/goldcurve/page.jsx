@@ -549,7 +549,11 @@ export default function GoldCurvePage() {
   const { asOfDate, priorDate, macro, stressStreak } = data;
   const hasPrior = !!priorDate;
 
-  const curves = buildCurves(data);
+  const curves = useMemo(() => {
+  if (!data || !Array.isArray(data.curves)) return {};
+  return buildCurves(data);
+}, [data]);
+
   const gold = curves.GOLD || [];
   const silver = curves.SILVER || [];
 
