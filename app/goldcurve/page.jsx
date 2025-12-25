@@ -500,22 +500,28 @@ export default function GoldCurvePage() {
     );
   }
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch("/api/goldcurve", { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        setData(json);
-      } catch (err) {
-        console.error(err);
-        setError(err.message || "Failed to load curve data");
-      } finally {
-        setLoading(false);
-      }
+useEffect(() => {
+  let alive = true;
+
+  async function load() {
+    try {
+      const res = await fetch("/api/goldcurve");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (alive) setData(json);
+    } catch (err) {
+      if (alive) setError(err.message || "Failed to load curve data");
+    } finally {
+      if (alive) setLoading(false);
     }
-    load();
-  }, []);
+  }
+
+  load();
+  return () => {
+    alive = false;
+  };
+}, []);
+
 
   useEffect(() => {
     async function loadHistory() {
