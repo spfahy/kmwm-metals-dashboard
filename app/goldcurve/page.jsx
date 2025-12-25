@@ -1,5 +1,4 @@
 "use client";
-export const dynamic = "force-dynamic";
 
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -16,15 +15,12 @@ import {
 function buildCurves(data) {
   const curves = Array.isArray(data?.curves) ? data.curves : [];
   const map = {};
-
   for (const c of curves) {
     if (!c?.metal || !Array.isArray(c.points)) continue;
     map[c.metal.toUpperCase()] = c.points;
   }
-
   return map;
 }
-
 
 function formatNumber(v, digits = 2) {
   if (v === null || v === undefined || Number.isNaN(v)) return "—";
@@ -338,9 +334,7 @@ function HistoryTooltip({ active, payload, label }) {
         boxShadow: "0 2px 10px rgba(0,0,0,0.10)",
       }}
     >
-      <div style={{ fontWeight: 800, marginBottom: 6 }}>
-        Date: {label}
-      </div>
+      <div style={{ fontWeight: 800, marginBottom: 6 }}>Date: {label}</div>
       <div>Gold: {gold == null ? "—" : Number(gold).toFixed(1)}</div>
       <div>Silver: {silver == null ? "—" : Number(silver).toFixed(2)}</div>
     </div>
@@ -471,79 +465,97 @@ function dailyAutoSummary({
 }
 
 export default function GoldCurvePage() {
+  // ---- ALL HOOKS MUST RUN BEFORE ANY return() ----
   const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState(null);
+
   const [showDetails, setShowDetails] = useState(false);
   const [showRawJson, setShowRawJson] = useState(false);
-  // ===== RENDER GUARDS (PREVENT REACT 310 CRASH) =====
- 
 
+  // Load curve
+  useEffect(() => {
+    let alive = true;
+
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const res = await fetch("/api/goldcurve", { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+
+        // HARD VALIDATION: must include curves array
+        if (!json || !Array.isArray(json.curves)) {
+          throw new Error(`Invalid data shape from /api/goldcurve: ${JSON.stringify(json)}`);
+        }
+
+        if (alive) setData(json);
+      } catch (err) {
+        if (alive) setError(err?.message || "Failed to load curve data");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Load history
+  useEffect(() => {
+    let alive = true;
+
+    async function loadHistory() {
+      try {
+        setHistoryLoading(true);
+        setHistoryError(null);
+
+        const res = await fetch("/api/metals-history", { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+
+        const series = Array.isArray(json?.series) ? json.series : [];
+        if (alive) setHistory(series);
+      } catch (err) {
+        if (alive) setHistoryError(err?.message || "Failed to load history");
+      } finally {
+        if (alive) setHistoryLoading(false);
+      }
+    }
+
+    loadHistory();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const curves = useMemo(() => buildCurves(data), [data]);
+
+  // ---- RENDER GUARDS (AFTER HOOKS) ----
+  if (loading) return <div style={{ padding: 24 }}>Loading gold curve…</div>;
   if (error) {
     return (
-      <pre style={{ padding: 24, color: "red" }}>
+      <pre style={{ padding: 24, color: "red", whiteSpace: "pre-wrap" }}>
         {String(error)}
       </pre>
     );
   }
-
-if (!data) {
-  return <div style={{ padding: 24 }}>Waiting for data…</div>;
-}
-
-
-
-useEffect(() => {
-  let alive = true;
-
-  async function load() {
-    try {
-      const res = await fetch("/api/goldcurve");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      console.log("API DATA:", json);
-      if (alive) setData(json);
-    } catch (err) {
-      if (alive) setError(err.message || "Failed to load curve data");
-    } finally {
-      if (alive) setLoading(false);
-    }
-  }
-
-  load();
-  return () => {
-    alive = false;
-  };
-}, []);
-
-
- 
- if (loading && !data) {
-  return <div style={{ padding: 20 }}>Loading gold & silver curves…</div>;
-}
-
-
-  if (error || !data) {
-    return (
-      <div style={{ padding: 20, color: "red" }}>
-        Error loading dashboard: {error || "No curve data returned"}
-      </div>
-    );
-  }
+  if (!data) return <div style={{ padding: 24 }}>No data returned.</div>;
 
   const { asOfDate, priorDate, macro, stressStreak } = data;
   const hasPrior = !!priorDate;
 
-  const curves = useMemo(() => {
-  if (!data?.curves) return {};
-  return buildCurves(data);
-}, [data]);
-
-
   const gold = curves.GOLD || [];
   const silver = curves.SILVER || [];
 
-  // Tenors used in curve chart
   const tenors = Array.from(
     new Set([...gold.map((p) => p.tenorMonths), ...silver.map((p) => p.tenorMonths)])
   ).sort((a, b) => a - b);
@@ -595,7 +607,7 @@ useEffect(() => {
   const silverCarryText =
     silverCarry_0_3 == null ? "—" : `${silverCarry_0_3 >= 0 ? "+" : ""}${silverCarry_0_3.toFixed(2)}`;
 
-  const historyOk = !historyLoading && !historyError && history && history.length > 0;
+  const historyOk = !historyLoading && !historyError && Array.isArray(history) && history.length > 0;
 
   const historyGoldDomain = historyOk ? computeDomain(history.map((d) => d.gold)) : ["auto", "auto"];
   const historySilverDomain = historyOk ? computeDomain(history.map((d) => d.silver)) : ["auto", "auto"];
@@ -655,7 +667,6 @@ useEffect(() => {
   const goldStressLabel = goldFrontStress ? "Front-End Stress" : "Normal";
   const silverStressLabel = silverFrontStress ? "Front-End Stress" : "Normal";
 
-  // Alerts (executive)
   const goldAlert = metalAlert(gold, "Gold", 20, 2);
   const silverAlert = metalAlert(silver, "Silver", 1.25, 2);
 
@@ -684,7 +695,6 @@ useEffect(() => {
     <div style={{ padding: 32, fontFamily: "Arial, sans-serif" }}>
       <h1 style={{ marginBottom: 8 }}>Gold &amp; Silver Term Structure</h1>
 
-      {/* ===== PRIMARY VERDICT (Executive banner) ===== */}
       <div
         style={{
           marginTop: 10,
@@ -752,35 +762,17 @@ useEffect(() => {
         )}
       </div>
 
-      {/* ===== AT-A-GLANCE STRIP (signals only) ===== */}
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 8,
-          alignItems: "center",
-          marginBottom: 12,
-        }}
-      >
-        <Chip>
-          Regime: {goldRegime.label} / {silverRegime.label}
-        </Chip>
-        <Chip>
-          Front-end stress: Gold {goldStressLabel} | Silver {silverStressLabel}
-        </Chip>
-        <Chip>
-          Momentum (3-day): Gold {goldMom3.tag} | Silver {silverMom3.tag}
-        </Chip>
-        <Chip>
-          Macro Δ: Real 10-year {real10yDeltaText} | Dollar index {dollarDeltaText}
-        </Chip>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 12 }}>
+        <Chip>Regime: {goldRegime.label} / {silverRegime.label}</Chip>
+        <Chip>Front-end stress: Gold {goldStressLabel} | Silver {silverStressLabel}</Chip>
+        <Chip>Momentum (3-day): Gold {goldMom3.tag} | Silver {silverMom3.tag}</Chip>
+        <Chip>Macro Δ: Real 10-year {real10yDeltaText} | Dollar index {dollarDeltaText}</Chip>
       </div>
 
       <div style={{ fontSize: 12, color: "#777", marginBottom: 12 }}>
         Shaded area highlights front-end (0–3m) curve sensitivity
       </div>
 
-      {/* ===== EXEC ALERT PANELS (Gold + Silver) ===== */}
       <div
         style={{
           display: "grid",
@@ -818,7 +810,6 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* ===== SUMMARY + CHECKLIST ===== */}
       <div
         style={{
           display: "grid",
@@ -929,12 +920,11 @@ useEffect(() => {
           </div>
 
           <div style={{ marginTop: 10, fontSize: 12, color: "#777" }}>
-            Ignore zones (noise bands): Gold ±0.30% (3-day), Silver ±0.75% (3-day). Alerts are only for front-end stress thresholds.
+            Ignore zones (noise bands): Gold ±0.30% (3-day), Silver ±0.75% (3-day).
           </div>
         </Card>
       </div>
 
-      {/* ===== CHANGE SINCE PRIOR (what moved) ===== */}
       {hasPrior && (
         <div style={{ marginBottom: 14 }}>
           <Card title="Change Since Prior (Curve Segments)" right="Today slope minus prior slope">
@@ -985,7 +975,6 @@ useEffect(() => {
         </div>
       )}
 
-      {/* ===== MACRO CARDS GRID ===== */}
       <div
         style={{
           display: "grid",
@@ -1033,10 +1022,8 @@ useEffect(() => {
         />
       </div>
 
-      {/* Legend ABOVE the curve chart */}
       <WrappedLegend payload={curveLegendPayload} />
 
-      {/* Curve chart */}
       <div style={{ width: "100%", height: 360, marginBottom: 24 }}>
         <ResponsiveContainer>
           <LineChart data={curveChartData} margin={{ top: 10, right: 55, bottom: 55, left: 60 }}>
@@ -1092,15 +1079,14 @@ useEffect(() => {
               <Line yAxisId="left" type="monotone" dataKey="goldPrior" stroke={GOLD_COLOR} strokeWidth={2} strokeDasharray="6 4" dot={false} />
             ) : null}
 
-            <Line yAxisId="right" type="monotone" dataKey="silverToday" stroke="#666666" strokeWidth={3} dot={false} />
+            <Line yAxisId="right" type="monotone" dataKey="silverToday" stroke={SILVER_NEUTRAL} strokeWidth={3} dot={false} />
             {hasPrior ? (
-              <Line yAxisId="right" type="monotone" dataKey="silverPrior" stroke="#666666" strokeWidth={2} strokeDasharray="6 4" dot={false} />
+              <Line yAxisId="right" type="monotone" dataKey="silverPrior" stroke={SILVER_NEUTRAL} strokeWidth={2} strokeDasharray="6 4" dot={false} />
             ) : null}
           </LineChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Curve metrics */}
       <h3>Curve Shape Metrics</h3>
       <div style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
         <div style={{ flex: "1 1 260px", border: "1px solid #ddd", borderRadius: 8, padding: 12 }}>
@@ -1130,7 +1116,6 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* Table */}
       <h3>Term Structure (Gold vs Silver)</h3>
       <table style={{ borderCollapse: "collapse", width: "100%", maxWidth: 900, marginBottom: 24 }}>
         <thead>
@@ -1170,23 +1155,16 @@ useEffect(() => {
         </tbody>
       </table>
 
-      {/* Front-month history */}
-      {history && history.length > 0 && (
-        <div style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>
-          Showing last <strong>{history.length}</strong> days (updates each morning)
-        </div>
-      )}
-
-      <h3>Front-Month History (Gold vs Silver)</h3>
-
-      {historyLoading && <div style={{ padding: 8 }}>Loading front-month history…</div>}
-      {historyError && <div style={{ padding: 8, color: "red" }}>Error loading history: {historyError}</div>}
-
       {historyOk && (
         <>
           <div style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>
-            Gold axis = left, Silver axis = right (auto-scaled)
+            Showing last <strong>{history.length}</strong> days
           </div>
+
+          <h3>Front-Month History (Gold vs Silver)</h3>
+
+          {historyLoading && <div style={{ padding: 8 }}>Loading front-month history…</div>}
+          {historyError && <div style={{ padding: 8, color: "red" }}>Error loading history: {historyError}</div>}
 
           <WrappedLegend payload={historyLegendPayload} />
 
@@ -1223,7 +1201,6 @@ useEffect(() => {
         </>
       )}
 
-      {/* ====== RAW JSON TOGGLE ====== */}
       <div style={{ marginTop: 10 }}>
         <button
           onClick={() => setShowRawJson((v) => !v)}
