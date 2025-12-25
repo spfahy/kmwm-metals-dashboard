@@ -490,14 +490,15 @@ export default function GoldCurvePage() {
     );
   }
 
-  if (!data || !Array.isArray(data.curves)) {
-    return (
-      <pre style={{ padding: 24 }}>
-        Invalid data shape:
-        {JSON.stringify(data, null, 2)}
-      </pre>
-    );
-  }
+if (!data || !Array.isArray(data.curves)) {
+  return (
+    <pre style={{ padding: 24 }}>
+      Invalid data shape:
+      {JSON.stringify(data, null, 2)}
+    </pre>
+  );
+}
+
 
 useEffect(() => {
   let alive = true;
@@ -507,6 +508,7 @@ useEffect(() => {
       const res = await fetch("/api/goldcurve");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
+      console.log("API DATA:", json);
       if (alive) setData(json);
     } catch (err) {
       if (alive) setError(err.message || "Failed to load curve data");
