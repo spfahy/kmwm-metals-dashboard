@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -472,16 +473,14 @@ function dailyAutoSummary({
 export default function GoldCurvePage() {
   const [data, setData] = useState(null);
   const [history, setHistory] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [error, setError] = useState(null);
   const [historyError, setHistoryError] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
   const [showRawJson, setShowRawJson] = useState(false);
   // ===== RENDER GUARDS (PREVENT REACT 310 CRASH) =====
-  if (loading) {
-    return <div style={{ padding: 24 }}>Loading gold curve…</div>;
-  }
+ 
 
   if (error) {
     return (
