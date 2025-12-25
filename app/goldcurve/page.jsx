@@ -472,11 +472,8 @@ function dailyAutoSummary({
 
 export default function GoldCurvePage() {
   const [data, setData] = useState(null);
-  const [history, setHistory] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [historyLoading, setHistoryLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [historyError, setHistoryError] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
   const [showRawJson, setShowRawJson] = useState(false);
   // ===== RENDER GUARDS (PREVENT REACT 310 CRASH) =====
@@ -524,26 +521,11 @@ useEffect(() => {
 }, []);
 
 
-  useEffect(() => {
-    async function loadHistory() {
-      try {
-        const res = await fetch("/api/metals-history", { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        setHistory(json.series || []);
-      } catch (err) {
-        console.error(err);
-        setHistoryError(err.message || "Failed to load history");
-      } finally {
-        setHistoryLoading(false);
-      }
-    }
-    loadHistory();
-  }, []);
+ 
+ if (loading && !data) {
+  return <div style={{ padding: 20 }}>Loading gold & silver curves…</div>;
+}
 
-  if (loading) {
-    return <div style={{ padding: 20 }}>Loading gold &amp; silver curves…</div>;
-  }
 
   if (error || !data) {
     return (
