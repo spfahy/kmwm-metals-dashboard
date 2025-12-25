@@ -487,14 +487,10 @@ export default function GoldCurvePage() {
     );
   }
 
-if (!data || !Array.isArray(data.curves)) {
-  return (
-    <pre style={{ padding: 24 }}>
-      Invalid data shape:
-      {JSON.stringify(data, null, 2)}
-    </pre>
-  );
+if (!data) {
+  return <div style={{ padding: 24 }}>Waiting for data…</div>;
 }
+
 
 
 useEffect(() => {
