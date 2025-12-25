@@ -13,13 +13,17 @@ import {
 } from "recharts";
 
 function buildCurves(data) {
-  const curves = data?.curves ?? [];
+  const curves = Array.isArray(data?.curves) ? data.curves : [];
   const map = {};
+
   for (const c of curves) {
-    map[c.metal.toUpperCase()] = c.points || [];
+    if (!c?.metal || !Array.isArray(c.points)) continue;
+    map[c.metal.toUpperCase()] = c.points;
   }
+
   return map;
 }
+
 
 function formatNumber(v, digits = 2) {
   if (v === null || v === undefined || Number.isNaN(v)) return "—";
@@ -472,9 +476,29 @@ export default function GoldCurvePage() {
   const [historyLoading, setHistoryLoading] = useState(true);
   const [error, setError] = useState(null);
   const [historyError, setHistoryError] = useState(null);
-
   const [showDetails, setShowDetails] = useState(false);
   const [showRawJson, setShowRawJson] = useState(false);
+  // ===== RENDER GUARDS (PREVENT REACT 310 CRASH) =====
+  if (loading) {
+    return <div style={{ padding: 24 }}>Loading gold curve…</div>;
+  }
+
+  if (error) {
+    return (
+      <pre style={{ padding: 24, color: "red" }}>
+        {String(error)}
+      </pre>
+    );
+  }
+
+  if (!data || !Array.isArray(data.curves)) {
+    return (
+      <pre style={{ padding: 24 }}>
+        Invalid data shape:
+        {JSON.stringify(data, null, 2)}
+      </pre>
+    );
+  }
 
   useEffect(() => {
     async function load() {
