@@ -133,7 +133,6 @@ export default function GoldCurvePage() {
             vertical={false}
             strokeOpacity={0.2}
     />
-            <ReferenceArea x1={0} x2={3} fillOpacity={0.12} />
             <XAxis dataKey="tenor" type="number" domain={[0, 12]} allowDecimals={false} />
             <YAxis
   yAxisId="left"
