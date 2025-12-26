@@ -113,11 +113,23 @@ function CurveTooltip({ active, payload, label }) {
     <div>
       <LegendRow hasPrior={hasPrior} />
 {hasPrior && (
-  <div style={{ fontSize: 12, color: "#555", marginBottom: 6 }}>
-    Gold Δ: {goldDelta === null ? "–" : `${goldDelta >= 0 ? "+" : ""}${goldDelta.toFixed(1)}`} |
-    Silver Δ: {silverDelta === null ? "–" : `${silverDelta >= 0 ? "+" : ""}${silverDelta.toFixed(2)}`}
+  <div style={{ fontSize: 12, marginBottom: 6, display: "flex", gap: 14, alignItems: "center" }}>
+    <span>
+      Gold Δ:{" "}
+      <span style={{ color: goldDelta === null ? "#777" : goldDelta >= 0 ? "green" : "red", fontWeight: 700 }}>
+        {goldDelta === null ? "–" : `${goldDelta >= 0 ? "+" : ""}${goldDelta.toFixed(1)}`}
+      </span>
+    </span>
+
+    <span>
+      Silver Δ:{" "}
+      <span style={{ color: silverDelta === null ? "#777" : silverDelta >= 0 ? "green" : "red", fontWeight: 700 }}>
+        {silverDelta === null ? "–" : `${silverDelta >= 0 ? "+" : ""}${silverDelta.toFixed(2)}`}
+      </span>
+    </span>
   </div>
 )}
+
 
     <div
       style={{
