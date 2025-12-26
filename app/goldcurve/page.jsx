@@ -110,7 +110,8 @@ function CurveTooltip({ active, payload, label }) {
   const silverDelta = sT != null && sP != null ? Number(sT) - Number(sP) : null;
 
   return (
-    <LegendRow hasPrior={hasPrior} />
+    <div>
+      <LegendRow hasPrior={hasPrior} />
 
     <div
       style={{
@@ -144,7 +145,8 @@ function CurveTooltip({ active, payload, label }) {
         </div>
       </div>
     </div>
-  );
+    </div>
+      );
 }
 
 /* ===================== PAGE ===================== */
