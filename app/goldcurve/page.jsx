@@ -11,6 +11,35 @@ import {
   Tooltip,
   ReferenceArea,
 } from "recharts";
+function LegendRow({ hasPrior }) {
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginTop: 10, marginBottom: 8 }}>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+        <span style={{ width: 18, borderTop: "3px solid #111", display: "inline-block" }} />
+        Gold Today
+      </span>
+
+      {hasPrior ? (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          <span style={{ width: 18, borderTop: "3px dashed #111", display: "inline-block" }} />
+          Gold Prior
+        </span>
+      ) : null}
+
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+        <span style={{ width: 18, borderTop: "3px solid #666", display: "inline-block" }} />
+        Silver Today
+      </span>
+
+      {hasPrior ? (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          <span style={{ width: 18, borderTop: "3px dashed #666", display: "inline-block" }} />
+          Silver Prior
+        </span>
+      ) : null}
+    </div>
+  );
+}
 
 
 /* ===================== DATA HELPERS ===================== */
@@ -81,6 +110,8 @@ function CurveTooltip({ active, payload, label }) {
   const silverDelta = sT != null && sP != null ? Number(sT) - Number(sP) : null;
 
   return (
+    <LegendRow hasPrior={hasPrior} />
+
     <div
       style={{
         background: "white",
