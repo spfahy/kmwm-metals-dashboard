@@ -148,58 +148,7 @@ function CurveTooltip({ active, payload, label }) {
     </div>
       );
 }
-function DeltaStrip({ chartData, hasPrior }) {
-  // Use the last tenor as a simple “current” snapshot
-  const last = Array.isArray(chartData) && chartData.length ? chartData[chartData.length - 1] : null;
 
-  const gT = last?.goldToday ?? null;
-  const gP = hasPrior ? (last?.goldPrior ?? null) : null;
-  const sT = last?.silverToday ?? null;
-  const sP = hasPrior ? (last?.silverPrior ?? null) : null;
-
-  const goldDelta = gT != null && gP != null ? Number(gT) - Number(gP) : null;
-  const silverDelta = sT != null && sP != null ? Number(sT) - Number(sP) : null;
-
-  const fmt1 = (v) => (v == null || Number.isNaN(Number(v)) ? "--" : Number(v).toFixed(1));
-  const fmt2 = (v) => (v == null || Number.isNaN(Number(v)) ? "--" : Number(v).toFixed(2));
-  const sign = (v) => (v == null ? "" : v >= 0 ? "+" : "");
-
-  return (
-    <div
-      style={{
-        background: "white",
-        border: "1px solid #ddd",
-        borderRadius: 10,
-        padding: 10,
-        fontSize: 12,
-        boxShadow: "0 2px 10px rgba(0,0,0,0.10)",
-        marginTop: 10,
-      }}
-    >
-      <div style={{ fontWeight: 800, marginBottom: 6 }}>Snapshot (last tenor)</div>
-
-      <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-        <div>
-          <div style={{ fontWeight: 700 }}>Gold</div>
-          <div>Today: {fmt1(gT)}</div>
-          <div>Prior: {hasPrior ? fmt1(gP) : "--"}</div>
-          <div>
-            Change: {goldDelta == null ? "--" : `${sign(goldDelta)}${fmt1(goldDelta)}`}
-          </div>
-        </div>
-
-        <div>
-          <div style={{ fontWeight: 700 }}>Silver</div>
-          <div>Today: {fmt2(sT)}</div>
-          <div>Prior: {hasPrior ? fmt2(sP) : "--"}</div>
-          <div>
-            Change: {silverDelta == null ? "--" : `${sign(silverDelta)}${fmt2(silverDelta)}`}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 function DeltaStrip({ chartData, hasPrior }) {
   if (!chartData || chartData.length === 0) return null;
 
