@@ -297,7 +297,7 @@ const silverDomain = useMemo(
 <div style={{ marginTop: 6, marginBottom: 6 }}>
   <LegendRow hasPrior={hasPrior} />
 </div>
-      <div style={{ marginTop: 18, width: "100%", height: 360 }}>
+      <div style={{ marginTop: 12, width: "100%", height: 380, background: "white", border: "1px solid #e5e5e5", borderRadius: 12, padding: 12 }}>
         <ResponsiveContainer>
           <LineChart data={chartData} margin={{ top: 10, right: 30, bottom: 30, left: 20 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.2} />
