@@ -172,14 +172,16 @@ export default function GoldCurvePage() {
     }));
   }, [tenors, gold, silver, hasPrior]);
 
-  const goldDomain = useMemo(
-    () => computeDomain(chartData.flatMap((d) => [d.goldToday, d.goldPrior]), 0.02),
-    [chartData]
-  );
-  const silverDomain = useMemo(
-    () => computeDomain(chartData.flatMap((d) => [d.silverToday, d.silverPrior]), 0.03),
-    [chartData]
-  );
+ const goldDomain = useMemo(
+  () => computeDomain(chartData.flatMap((d) => [d.goldToday, d.goldPrior]), 0.02),
+  [chartData]
+);
+
+const silverDomain = useMemo(
+  () => computeDomain(chartData.flatMap((d) => [d.silverToday, d.silverPrior]), 0.03),
+  [chartData]
+);
+
 
   if (loading) return <div style={{ padding: 24 }}>Loading gold curve…</div>;
   if (error) return <pre style={{ padding: 24, color: "red" }}>{error}</pre>;
