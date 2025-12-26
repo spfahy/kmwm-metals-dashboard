@@ -226,7 +226,8 @@ const silverDomain = useMemo(
 />
 
 
-            <Tooltip content={<CurveTooltip />} />
+           <Tooltip formatter={(v) => (v == null ? "" : Number(v).toFixed(2))} />
+
 
             <Line yAxisId="left" type="monotone" dataKey="goldToday" dot={false} stroke="#111" strokeWidth={3} />
 {hasPrior ? (
