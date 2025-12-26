@@ -81,6 +81,16 @@ export default function GoldCurvePage() {
   }, [gold, silver]);
 
   const chartData = useMemo(() => {
+    const goldDomain = computeDomain(
+  curveChartData.flatMap(d => [d.goldToday, d.goldPrior]),
+  0.02
+);
+
+const silverDomain = computeDomain(
+  curveChartData.flatMap(d => [d.silverToday, d.silverPrior]),
+  0.03
+);
+
     return tenors.map((t) => ({
       tenor: t,
       goldToday: priceAt(gold, t, "today"),
@@ -124,6 +134,8 @@ export default function GoldCurvePage() {
           </span>
         ) : null}
       </div>
+const goldDomain = ["auto", "auto"];
+const silverDomain = ["auto", "auto"];
 
       <div style={{ width: "100%", height: 360 }}>
         <ResponsiveContainer>
