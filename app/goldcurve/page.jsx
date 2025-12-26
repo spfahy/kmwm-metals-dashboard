@@ -12,6 +12,9 @@ import {
   ReferenceArea,
 } from "recharts";
 function computeDomain(values, padPct = 0.02) {
+  const clean = (values || []).filter(
+    (v) => v !== null && v !== undefined && !Number.isNaN(Number(v))
+  );
   if (clean.length === 0) return ["auto", "auto"];
 
   const min = Math.min(...clean);
@@ -19,13 +22,12 @@ function computeDomain(values, padPct = 0.02) {
 
   if (min === max) {
     const bump = Math.abs(min) * 0.01 || 1;
-    return [min - bump, max + bump];
+    return [Math.floor(min - bump), Math.ceil(max + bump)];
   }
 
   const range = max - min;
   const pad = range * padPct;
-
-  return [min - pad, max + pad];
+  return [Math.floor(min - pad), Math.ceil(max + pad)];
 }
 
 function buildCurves(data) {
