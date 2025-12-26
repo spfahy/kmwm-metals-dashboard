@@ -148,6 +148,98 @@ function CurveTooltip({ active, payload, label }) {
     </div>
       );
 }
+function DeltaStrip({ chartData, hasPrior }) {
+  // Use the last tenor as a simple “current” snapshot
+  const last = Array.isArray(chartData) && chartData.length ? chartData[chartData.length - 1] : null;
+
+  const gT = last?.goldToday ?? null;
+  const gP = hasPrior ? (last?.goldPrior ?? null) : null;
+  const sT = last?.silverToday ?? null;
+  const sP = hasPrior ? (last?.silverPrior ?? null) : null;
+
+  const goldDelta = gT != null && gP != null ? Number(gT) - Number(gP) : null;
+  const silverDelta = sT != null && sP != null ? Number(sT) - Number(sP) : null;
+
+  const fmt1 = (v) => (v == null || Number.isNaN(Number(v)) ? "--" : Number(v).toFixed(1));
+  const fmt2 = (v) => (v == null || Number.isNaN(Number(v)) ? "--" : Number(v).toFixed(2));
+  const sign = (v) => (v == null ? "" : v >= 0 ? "+" : "");
+
+  return (
+    <div
+      style={{
+        background: "white",
+        border: "1px solid #ddd",
+        borderRadius: 10,
+        padding: 10,
+        fontSize: 12,
+        boxShadow: "0 2px 10px rgba(0,0,0,0.10)",
+        marginTop: 10,
+      }}
+    >
+      <div style={{ fontWeight: 800, marginBottom: 6 }}>Snapshot (last tenor)</div>
+
+      <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontWeight: 700 }}>Gold</div>
+          <div>Today: {fmt1(gT)}</div>
+          <div>Prior: {hasPrior ? fmt1(gP) : "--"}</div>
+          <div>
+            Change: {goldDelta == null ? "--" : `${sign(goldDelta)}${fmt1(goldDelta)}`}
+          </div>
+        </div>
+
+        <div>
+          <div style={{ fontWeight: 700 }}>Silver</div>
+          <div>Today: {fmt2(sT)}</div>
+          <div>Prior: {hasPrior ? fmt2(sP) : "--"}</div>
+          <div>
+            Change: {silverDelta == null ? "--" : `${sign(silverDelta)}${fmt2(silverDelta)}`}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+function DeltaStrip({ chartData, hasPrior }) {
+  if (!chartData || chartData.length === 0) return null;
+
+  const last = chartData[chartData.length - 1];
+
+  const goldDelta =
+    hasPrior && last.goldToday != null && last.goldPrior != null
+      ? last.goldToday - last.goldPrior
+      : null;
+
+  const silverDelta =
+    hasPrior && last.silverToday != null && last.silverPrior != null
+      ? last.silverToday - last.silverPrior
+      : null;
+
+  return (
+    <div
+      style={{
+        marginTop: 12,
+        marginBottom: 6,
+        padding: "6px 10px",
+        fontSize: 13,
+        display: "flex",
+        gap: 16,
+        background: "#fafafa",
+        border: "1px solid #ddd",
+        borderRadius: 6,
+      }}
+    >
+      <div>
+        <strong>Gold Δ:</strong>{" "}
+        {goldDelta == null ? "—" : goldDelta.toFixed(1)}
+      </div>
+      <div>
+        <strong>Silver Δ:</strong>{" "}
+        {silverDelta == null ? "—" : silverDelta.toFixed(2)}
+      </div>
+    </div>
+  );
+}
 
 /* ===================== PAGE ===================== */
 export default function GoldCurvePage() {
@@ -233,6 +325,8 @@ const silverDomain = useMemo(
         ) : null}
       </div>  
 
+      <DeltaStrip chartData={chartData} hasPrior={hasPrior} />
+      
 <div style={{ marginTop: 6, marginBottom: 6 }}>
   <LegendRow hasPrior={hasPrior} />
 </div>
