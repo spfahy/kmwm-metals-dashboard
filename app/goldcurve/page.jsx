@@ -11,8 +11,7 @@ import {
   Tooltip,
   ReferenceArea,
 } from "recharts";
-
-
+function computeDomain(values, padPct = 0.02) {
   if (clean.length === 0) return ["auto", "auto"];
 
   const min = Math.min(...clean);
