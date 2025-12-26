@@ -128,12 +128,31 @@ export default function GoldCurvePage() {
       <div style={{ width: "100%", height: 360 }}>
         <ResponsiveContainer>
           <LineChart data={chartData} margin={{ top: 10, right: 30, bottom: 30, left: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <CartesianGrid
+            strokeDasharray="3 3"
+            vertical={false}
+            strokeOpacity={0.2}
+    />
             <ReferenceArea x1={0} x2={3} fillOpacity={0.12} />
             <XAxis dataKey="tenor" type="number" domain={[0, 12]} allowDecimals={false} />
-            <YAxis yAxisId="left" />
-            <YAxis yAxisId="right" orientation="right" />
-            <Tooltip />
+            <YAxis
+  yAxisId="left"
+  domain={goldDomain}
+  tickCount={6}
+  tick={{ fontSize: 12 }}
+  label={{ value: "Gold ($)", angle: -90, position: "insideLeft", dx: -10 }}
+/>
+
+            <YAxis
+  yAxisId="right"
+  orientation="right"
+  domain={silverDomain}
+  tickCount={6}
+  tick={{ fontSize: 12 }}
+  label={{ value: "Silver ($)", angle: 90, position: "insideRight", dx: 10 }}
+/>
+
+            <Tooltip content={<CurveTooltip />} />
             <Line yAxisId="left" type="monotone" dataKey="goldToday" dot={false} />
             {hasPrior ? <Line yAxisId="left" type="monotone" dataKey="goldPrior" dot={false} strokeDasharray="6 4" /> : null}
             <Line yAxisId="right" type="monotone" dataKey="silverToday" dot={false} />
