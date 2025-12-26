@@ -11,35 +11,7 @@ import {
   Tooltip,
   ReferenceArea,
 } from "recharts";
-function LegendRow({ hasPrior }) {
-  return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginTop: 10, marginBottom: 8 }}>
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-        <span style={{ width: 18, borderTop: "3px solid #111", display: "inline-block" }} />
-        Gold Today
-      </span>
 
-      {hasPrior ? (
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-          <span style={{ width: 18, borderTop: "3px dashed #111", display: "inline-block" }} />
-          Gold Prior
-        </span>
-      ) : null}
-
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-        <span style={{ width: 18, borderTop: "3px solid #666", display: "inline-block" }} />
-        Silver Today
-      </span>
-
-      {hasPrior ? (
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-          <span style={{ width: 18, borderTop: "3px dashed #666", display: "inline-block" }} />
-          Silver Prior
-        </span>
-      ) : null}
-    </div>
-  );
-}
 
 /* ===================== DATA HELPERS ===================== */
 function buildCurves(data) {
@@ -225,7 +197,7 @@ export default function GoldCurvePage() {
           </span>
         ) : null}
       </div>
-<LegendRow hasPrior={hasPrior} />
+
 
       <div style={{ marginTop: 18, width: "100%", height: 360 }}>
         <ResponsiveContainer>
