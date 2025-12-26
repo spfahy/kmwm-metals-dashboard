@@ -231,10 +231,11 @@ const silverDomain = useMemo(
             Prior: <strong>{formatDate(data.priorDate)}</strong>
           </span>
         ) : null}
-      </div>  //end of header section
+      </div>  
 
-<LegendRow hasPrior={hasPrior} />
-
+<div style={{ marginTop: 6, marginBottom: 6 }}>
+  <LegendRow hasPrior={hasPrior} />
+</div>
       <div style={{ marginTop: 18, width: "100%", height: 360 }}>
         <ResponsiveContainer>
           <LineChart data={chartData} margin={{ top: 10, right: 30, bottom: 30, left: 20 }}>
