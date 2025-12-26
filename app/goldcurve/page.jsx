@@ -11,6 +11,35 @@ import {
   Tooltip,
   ReferenceArea,
 } from "recharts";
+function LegendRow({ hasPrior }) {
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginTop: 10, marginBottom: 8 }}>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+        <span style={{ width: 18, borderTop: "3px solid #111", display: "inline-block" }} />
+        Gold Today
+      </span>
+
+      {hasPrior ? (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          <span style={{ width: 18, borderTop: "3px dashed #111", display: "inline-block" }} />
+          Gold Prior
+        </span>
+      ) : null}
+
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+        <span style={{ width: 18, borderTop: "3px solid #666", display: "inline-block" }} />
+        Silver Today
+      </span>
+
+      {hasPrior ? (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          <span style={{ width: 18, borderTop: "3px dashed #666", display: "inline-block" }} />
+          Silver Prior
+        </span>
+      ) : null}
+    </div>
+  );
+}
 
 /* ===================== DATA HELPERS ===================== */
 function buildCurves(data) {
@@ -196,6 +225,7 @@ export default function GoldCurvePage() {
           </span>
         ) : null}
       </div>
+<LegendRow hasPrior={hasPrior} />
 
       <div style={{ marginTop: 18, width: "100%", height: 360 }}>
         <ResponsiveContainer>
@@ -206,20 +236,34 @@ export default function GoldCurvePage() {
 
             <XAxis dataKey="tenor" type="number" domain={[0, 12]} allowDecimals={false} />
 
-            <YAxis yAxisId="left" domain={goldDomain} />
-            <YAxis yAxisId="right" orientation="right" domain={silverDomain} />
+           <YAxis
+  yAxisId="left"
+  domain={goldDomain}
+  tick={{ fontSize: 12 }}
+  label={{ value: "Gold (United States dollars)", angle: -90, position: "insideLeft" }}
+/>
+
+<YAxis
+  yAxisId="right"
+  orientation="right"
+  domain={silverDomain}
+  tick={{ fontSize: 12 }}
+  label={{ value: "Silver (United States dollars)", angle: 90, position: "insideRight" }}
+/>
+
 
             <Tooltip content={<CurveTooltip />} />
 
-            <Line yAxisId="left" type="monotone" dataKey="goldToday" dot={false} />
-            {hasPrior ? (
-              <Line yAxisId="left" type="monotone" dataKey="goldPrior" dot={false} strokeDasharray="6 4" />
-            ) : null}
+            <Line yAxisId="left" type="monotone" dataKey="goldToday" dot={false} stroke="#111" strokeWidth={3} />
+{hasPrior ? (
+  <Line yAxisId="left" type="monotone" dataKey="goldPrior" dot={false} stroke="#111" strokeWidth={2} strokeDasharray="6 4" />
+) : null}
 
-            <Line yAxisId="right" type="monotone" dataKey="silverToday" dot={false} />
-            {hasPrior ? (
-              <Line yAxisId="right" type="monotone" dataKey="silverPrior" dot={false} strokeDasharray="6 4" />
-            ) : null}
+<Line yAxisId="right" type="monotone" dataKey="silverToday" dot={false} stroke="#666" strokeWidth={3} />
+{hasPrior ? (
+  <Line yAxisId="right" type="monotone" dataKey="silverPrior" dot={false} stroke="#666" strokeWidth={2} strokeDasharray="6 4" />
+) : null}
+
           </LineChart>
         </ResponsiveContainer>
       </div>
