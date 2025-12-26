@@ -231,8 +231,9 @@ const silverDomain = useMemo(
             Prior: <strong>{formatDate(data.priorDate)}</strong>
           </span>
         ) : null}
-      </div>
+      </div>  //end of header section
 
+<LegendRow hasPrior={hasPrior} />
 
       <div style={{ marginTop: 18, width: "100%", height: 360 }}>
         <ResponsiveContainer>
