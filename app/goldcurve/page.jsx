@@ -11,6 +11,26 @@ import {
   Tooltip,
   ReferenceArea,
 } from "recharts";
+function computeDomain(values, padPct = 0.02) {
+  const clean = (values || []).filter(
+    (v) => v !== null && v !== undefined && !Number.isNaN(Number(v))
+  );
+
+  if (clean.length === 0) return ["auto", "auto"];
+
+  const min = Math.min(...clean);
+  const max = Math.max(...clean);
+
+  if (min === max) {
+    const bump = Math.abs(min) * 0.01 || 1;
+    return [min - bump, max + bump];
+  }
+
+  const range = max - min;
+  const pad = range * padPct;
+
+  return [min - pad, max + pad];
+}
 
 function buildCurves(data) {
   const curves = Array.isArray(data?.curves) ? data.curves : [];
