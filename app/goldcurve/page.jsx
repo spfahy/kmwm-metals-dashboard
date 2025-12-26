@@ -54,6 +54,19 @@ function formatDate(value) {
   if (Number.isNaN(d.getTime())) return String(value).split("T")[0] || String(value);
   return d.toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" });
 }
+function computeDomain(values, padPct = 0.02) {
+  const clean = values.filter(
+    (v) => v !== null && v !== undefined && !Number.isNaN(v)
+  );
+  if (clean.length === 0) return ["auto", "auto"];
+
+  const min = Math.min(...clean);
+  const max = Math.max(...clean);
+  const range = max - min || 1;
+  const pad = range * padPct;
+
+  return [Math.floor(min - pad), Math.ceil(max + pad)];
+}
 
 export default function GoldCurvePage() {
   const [data, setData] = useState(null);
