@@ -107,24 +107,25 @@ const curveChartData = tenors.map((t) => ({
 }));
 
   const chartData = useMemo(() => {
-    const goldDomain = computeDomain(
-  curveChartData.flatMap(d => [d.goldToday, d.goldPrior]),
+  return tenors.map((t) => ({
+    tenor: t,
+    goldToday: priceAt(gold, t, "today"),
+    goldPrior: hasPrior ? priceAt(gold, t, "prior") : null,
+    silverToday: priceAt(silver, t, "today"),
+    silverPrior: hasPrior ? priceAt(silver, t, "prior") : null,
+  }));
+}, [tenors, gold, silver, hasPrior]);
+
+const goldDomain = computeDomain(
+  chartData.flatMap((d) => [d.goldToday, d.goldPrior]),
   0.02
 );
 
 const silverDomain = computeDomain(
-  curveChartData.flatMap(d => [d.silverToday, d.silverPrior]),
+  chartData.flatMap((d) => [d.silverToday, d.silverPrior]),
   0.03
 );
 
-    return tenors.map((t) => ({
-      tenor: t,
-      goldToday: priceAt(gold, t, "today"),
-      goldPrior: hasPrior ? priceAt(gold, t, "prior") : null,
-      silverToday: priceAt(silver, t, "today"),
-      silverPrior: hasPrior ? priceAt(silver, t, "prior") : null,
-    }));
-  }, [tenors, gold, silver, hasPrior]);
 
   // ---- RENDER (no hooks below this line) ----
   if (loading) return <div style={{ padding: 24 }}>Loading gold curve…</div>;
@@ -160,8 +161,7 @@ const silverDomain = computeDomain(
           </span>
         ) : null}
       </div>
-const goldDomain = ["auto", "auto"];
-const silverDomain = ["auto", "auto"];
+
 
       <div style={{ width: "100%", height: 360 }}>
         <ResponsiveContainer>
