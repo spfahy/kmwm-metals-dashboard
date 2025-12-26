@@ -11,10 +11,7 @@ import {
   Tooltip,
   ReferenceArea,
 } from "recharts";
-function computeDomain(values, padPct = 0.02) {
-  const clean = (values || []).filter(
-    (v) => v !== null && v !== undefined && !Number.isNaN(Number(v))
-  );
+
 
   if (clean.length === 0) return ["auto", "auto"];
 
