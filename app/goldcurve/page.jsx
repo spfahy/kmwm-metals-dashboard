@@ -99,6 +99,13 @@ export default function GoldCurvePage() {
     for (const p of silver) if (p?.tenorMonths != null) t.add(p.tenorMonths);
     return Array.from(t).sort((a, b) => a - b);
   }, [gold, silver]);
+const curveChartData = tenors.map((t) => ({
+  tenor: t,
+  goldToday: priceAt(gold, t, "today"),
+  goldPrior: hasPrior ? priceAt(gold, t, "prior") : null,
+  silverToday: priceAt(silver, t, "today"),
+  silverPrior: hasPrior ? priceAt(silver, t, "prior") : null,
+}));
 
   const chartData = useMemo(() => {
     const goldDomain = computeDomain(
