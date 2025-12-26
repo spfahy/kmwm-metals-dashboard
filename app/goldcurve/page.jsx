@@ -1,3 +1,5 @@
+// BASELINE STABLE — do not delete this file
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
