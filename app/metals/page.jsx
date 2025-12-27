@@ -13,12 +13,17 @@ import {
 } from "recharts";
 
 export default function MetalsPage() {
-  
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+useEffect(() => {
+  fetch("/api/metals")
+    .then((r) => r.json())
+    .then(setData)
+    .catch(() => setError("Failed to load data"))
+    .finally(() => setLoading(false));
+}, []);
 
- // TEMP: disable API loading
-const data = {};
 
 
   return (
