@@ -31,7 +31,7 @@ useEffect(() => {
 const gold = data?.gold;
 const silver = data?.silver;
 
-const goldSpot = gold?.spot ?? "—";
+
 
 
 const silverSpot = silver?.spot ?? "—";
