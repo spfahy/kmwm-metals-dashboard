@@ -35,7 +35,7 @@ const goldSpot = gold?.spot ?? "—";
 const goldChange = gold?.change1d ?? "—";
 
 const silverSpot = silver?.spot ?? "—";
-const silverChange = silver?.change1d ?? "—";
+
 
 
   return (
