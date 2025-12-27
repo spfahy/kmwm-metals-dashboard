@@ -16,7 +16,7 @@ export default function MetalsPage() {
   const [data, setData] = useState(null);
   const goldSpot = data?.gold?.spot ?? "—";
 const goldChange = data?.gold?.change1d ?? "—";
-
+const silverSpot = data?.silver?.spot ?? "—";
 const silverChange = data?.silver?.change1d ?? "—";
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
