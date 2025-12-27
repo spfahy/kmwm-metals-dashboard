@@ -14,9 +14,12 @@ import {
 
 export default function MetalsPage() {
   const [data, setData] = useState(null);
-  const goldSpot = data?.gold?.spot ?? "—";
-const goldChange = data?.gold?.change1d ?? "—";
-const silverSpot = data?.silver?.spot ?? "—";
+ const goldSpot = data?.gold?.spot ?? "--";
+const goldChange = data?.gold?.change1d ?? "--";
+
+const silverSpot = data?.silver?.spot ?? "--";
+const silverChange = data?.silver?.change1d ?? "--";
+
 const silverChange = data?.silver?.change1d ?? "—";
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -93,6 +96,19 @@ useEffect(() => {
     </div>
   </div>
 </div>
+<pre
+  style={{
+    marginTop: 16,
+    padding: 12,
+    border: "1px solid #ddd",
+    borderRadius: 10,
+    background: "#fafafa",
+    fontSize: 12,
+    overflowX: "auto",
+  }}
+>
+  {JSON.stringify(data, null, 2)}
+</pre>
 
     </main>
   );
