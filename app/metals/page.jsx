@@ -32,7 +32,7 @@ const gold = data?.gold;
 const silver = data?.silver;
 
 const goldSpot = gold?.spot ?? "—";
-const goldChange = gold?.change1d ?? "—";
+
 
 const silverSpot = silver?.spot ?? "—";
 
