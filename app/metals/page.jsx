@@ -31,17 +31,30 @@ const data = {};
         <a href="/goldcurve">← Back to Gold Curve</a>
       </div>
 
-      <div
-        style={{
-          marginTop: 24,
-          padding: 16,
-          border: "1px solid #ddd",
-          borderRadius: 10,
-        }}
-      >
-        <strong>Status:</strong> Page restored.  
-        This is where your **second full dashboard page** lives.
-      </div>
+     <div style={{ marginTop: 24 }}>
+  <h2 style={{ marginBottom: 12 }}>Metals Overview</h2>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+      gap: 16,
+    }}
+  >
+    <div style={{ padding: 16, border: "1px solid #ddd", borderRadius: 10 }}>
+      <strong>Gold</strong>
+      <div>Spot: —</div>
+      <div>1D Change: —</div>
+    </div>
+
+    <div style={{ padding: 16, border: "1px solid #ddd", borderRadius: 10 }}>
+      <strong>Silver</strong>
+      <div>Spot: —</div>
+      <div>1D Change: —</div>
+    </div>
+  </div>
+</div>
+
     </main>
   );
 }
