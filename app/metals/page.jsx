@@ -13,7 +13,7 @@ import {
 } from "recharts";
 
 export default function MetalsPage() {
-  const [data, setData] = useState(null);
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
