@@ -52,6 +52,20 @@ useEffect(() => {
       </div>
 
      <div style={{ marginTop: 24 }}>
+       {data && (
+  <div
+    style={{
+      marginBottom: 16,
+      padding: 12,
+      border: "1px solid #ddd",
+      borderRadius: 6,
+    }}
+  >
+    <div><strong>As of:</strong> {data.asOfDate}</div>
+    <div><strong>Prior:</strong> {data.priorDate}</div>
+  </div>
+)}
+
   <h2 style={{ marginBottom: 12 }}>Metals Overview</h2>
 
   <div
