@@ -14,6 +14,10 @@ import {
 
 export default function MetalsPage() {
   const [data, setData] = useState(null);
+  const goldSpot = data?.gold?.spot ?? "—";
+const goldChange = data?.gold?.change1d ?? "—";
+const silverSpot = data?.silver?.spot ?? "—";
+const silverChange = data?.silver?.change1d ?? "—";
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 useEffect(() => {
@@ -24,6 +28,14 @@ useEffect(() => {
     .finally(() => setLoading(false));
 }, []);
 
+const gold = data?.gold;
+const silver = data?.silver;
+
+const goldSpot = gold?.spot ?? "—";
+const goldChange = gold?.change1d ?? "—";
+
+const silverSpot = silver?.spot ?? "—";
+const silverChange = silver?.change1d ?? "—";
 
 
   return (
@@ -77,14 +89,14 @@ useEffect(() => {
   >
     <div style={{ padding: 16, border: "1px solid #ddd", borderRadius: 10 }}>
       <strong>Gold</strong>
-      <div>Spot: —</div>
+      <div>1D Change: {goldChange}</div>
       <div>1D Change: —</div>
     </div>
 
     <div style={{ padding: 16, border: "1px solid #ddd", borderRadius: 10 }}>
       <strong>Silver</strong>
-      <div>Spot: —</div>
-      <div>1D Change: —</div>
+      <div>Spot: {silverSpot}</div>
+      <div>1D Change: {silverChange}</div>
     </div>
   </div>
 </div>
