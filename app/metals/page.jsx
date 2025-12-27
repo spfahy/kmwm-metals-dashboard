@@ -28,11 +28,20 @@ useEffect(() => {
 
   return (
     <main style={{ padding: 24, fontFamily: "system-ui, Arial" }}>
-      {data && (
-  <div style={{ marginBottom: 16, padding: 12, border: "1px solid #ddd" }}>
-    <strong>API OK:</strong> {JSON.stringify(Object.keys(data))}
+  {data && (
+  <div
+    style={{
+      marginBottom: 16,
+      padding: 12,
+      border: "1px solid #ddd",
+      borderRadius: 6,
+    }}
+  >
+    <div><strong>As of:</strong> {data.asOfDate}</div>
+    <div><strong>Prior:</strong> {data.priorDate}</div>
   </div>
 )}
+
 
       <h1 style={{ margin: 0, fontSize: 32, fontWeight: 900 }}>
         KMWM Metals Dashboard — Page 2
