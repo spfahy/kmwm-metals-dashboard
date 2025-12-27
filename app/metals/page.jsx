@@ -28,13 +28,6 @@ useEffect(() => {
     .finally(() => setLoading(false));
 }, []);
 
-const gold = data?.gold;
-const silver = data?.silver;
-
-
-
-
-const silverSpot = silver?.spot ?? "—";
 
 
 
@@ -89,9 +82,9 @@ const silverSpot = silver?.spot ?? "—";
   >
     <div style={{ padding: 16, border: "1px solid #ddd", borderRadius: 10 }}>
       <strong>Gold</strong>
+      <div>Spot: {goldSpot}</div>
       <div>1D Change: {goldChange}</div>
-      <div>1D Change: —</div>
-    </div>
+     </div>
 
     <div style={{ padding: 16, border: "1px solid #ddd", borderRadius: 10 }}>
       <strong>Silver</strong>
