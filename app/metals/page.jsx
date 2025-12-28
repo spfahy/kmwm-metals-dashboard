@@ -192,20 +192,7 @@ useEffect(() => {
     }}
   >
     {JSON.stringify(data, null, 2)}
-  </pre>
-
-  <pre
-    style={{
-      marginTop: 10,
-      padding: 12,
-      border: "1px solid #ddd",
-      borderRadius: 8,
-      background: "#fafafa",
-      fontSize: 12,
-      overflowX: "auto",
-    }}
-  >
-    {JSON.stringify(data, null, 2)}
+ 
   </pre>
 )}
 
