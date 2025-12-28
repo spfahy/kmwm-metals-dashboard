@@ -1,23 +1,33 @@
+// app/api/metals/route.js
+// REPLACE THE ENTIRE FILE WITH THIS (full file)
+
 import { NextResponse } from "next/server";
 
 function toNum(x) {
-  const s = String(x ?? "").trim();
-  if (s === "") return null;     // IMPORTANT: blank stays blank (not 0)
-  const n = Number(s);
+  const n = Number(String(x ?? "").trim());
   return Number.isFinite(n) ? n : null;
 }
 
+// normalize header names so ANY of these work:
+// "tenor_months", "Tenor Months", "TENOR MONTHS", "tenorMonths", etc.
+function normKey(k) {
+  return String(k ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, ""); // remove spaces + underscores
+}
 
-function pick(obj, keys) {
+function pickNorm(obj, keys) {
   for (const k of keys) {
-    if (obj[k] != null && String(obj[k]).trim() !== "") return obj[k];
+    const v = obj[normKey(k)];
+    if (v != null && String(v).trim() !== "") return v;
   }
   return null;
 }
 
 // Expected CSV columns (header row required):
 // as_of_date, prior_date, tenor_months, gold_today, gold_prior, silver_today, silver_prior
-// You can add extra columns; they’ll be ignored.
+// BUT we now also accept space/case variants like "As Of Date", "Tenor Months", etc.
 export async function GET() {
   try {
     const url = process.env.METALS_CSV_URL;
@@ -29,14 +39,15 @@ export async function GET() {
     }
 
     const res = await fetch(url, { cache: "no-store" });
+    const text = await res.text();
+
     if (!res.ok) {
       return NextResponse.json(
-        { error: `CSV fetch failed: ${res.status}` },
+        { error: `CSV fetch failed: ${res.status}`, body200: text.slice(0, 200) },
         { status: 500 }
       );
     }
 
-    const text = await res.text();
     const lines = text.split(/\r?\n/).filter((l) => l.trim().length);
     if (lines.length < 2) {
       return NextResponse.json(
@@ -45,10 +56,8 @@ export async function GET() {
       );
     }
 
-    const headers = lines[0]
-  .replace(/^\uFEFF/, "") // strip UTF-8 BOM if present
-  .split(",")
-  .map((h) => h.trim());
+    const rawHeaders = lines[0].split(",").map((h) => h.trim());
+    const headers = rawHeaders.map(normKey);
 
     const rows = lines.slice(1).map((line) => {
       const cols = line.split(",");
@@ -57,18 +66,26 @@ export async function GET() {
       return obj;
     });
 
-    // Pull dates from first row (or fallback to blanks)
     const first = rows[0] || {};
-    const asOfDate = pick(first, ["as_of_date", "asOfDate", "date"]) ?? "";
-    const priorDate = pick(first, ["prior_date", "priorDate"]) ?? "";
+
+    const asOfDate =
+      pickNorm(first, ["as_of_date", "asOfDate", "As Of Date", "date"]) ?? "";
+    const priorDate =
+      pickNorm(first, ["prior_date", "priorDate", "Prior Date"]) ?? "";
 
     const curves = rows
       .map((r) => ({
-        tenorMonths: toNum(pick(r, ["tenor_months", "tenorMonths", "tenor"])),
-        goldToday: toNum(pick(r, ["gold_today", "goldToday"])),
-        goldPrior: toNum(pick(r, ["gold_prior", "goldPrior"])),
-        silverToday: toNum(pick(r, ["silver_today", "silverToday"])),
-        silverPrior: toNum(pick(r, ["silver_prior", "silverPrior"])),
+        tenorMonths: toNum(
+          pickNorm(r, ["tenor_months", "tenorMonths", "Tenor Months", "tenor"])
+        ),
+        goldToday: toNum(pickNorm(r, ["gold_today", "goldToday", "Gold Today"])),
+        goldPrior: toNum(pickNorm(r, ["gold_prior", "goldPrior", "Gold Prior"])),
+        silverToday: toNum(
+          pickNorm(r, ["silver_today", "silverToday", "Silver Today"])
+        ),
+        silverPrior: toNum(
+          pickNorm(r, ["silver_prior", "silverPrior", "Silver Prior"])
+        ),
       }))
       .filter((r) => r.tenorMonths != null)
       .sort((a, b) => a.tenorMonths - b.tenorMonths);
