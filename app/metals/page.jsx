@@ -22,11 +22,29 @@ export default function MetalsPage() {
     const [showRaw, setShowRaw] = useState(false);
 
 useEffect(() => {
-  fetch("/api/metals")
-    .then((r) => r.json())
-    .then(setData)
-    .catch(() => setError("Failed to load data"))
-    .finally(() => setLoading(false));
+ fetch("/api/metals")
+  .then(async (r) => {
+    const txt = await r.text();
+    let j = null;
+
+    try {
+      j = JSON.parse(txt);
+    } catch (e) {
+      setError("API did not return JSON. First 200 chars: " + txt.slice(0, 200));
+      return;
+    }
+
+    if (j == null) {
+      setError("API returned null (no data). Check /api/metals route.");
+      setData(null);
+      return;
+    }
+
+    setData(j);
+  })
+  .catch(() => setError("Failed to load data"))
+  .finally(() => setLoading(false));
+;
 }, []);
 
   const curves = data?.curves ?? [];
@@ -53,6 +71,29 @@ useEffect(() => {
 
   return (
     <main style={{ padding: 24, fontFamily: "system-ui, Arial" }}>
+      {loading && (
+  <div style={{ marginTop: 10, padding: 10, border: "1px solid #ddd", borderRadius: 8 }}>
+    Loading…
+  </div>
+)}
+
+{error && (
+  <div
+    style={{
+      marginTop: 10,
+      padding: 10,
+      border: "1px solid #f5c2c7",
+      borderRadius: 8,
+      background: "#f8d7da",
+      color: "#842029",
+      fontSize: 13,
+      fontWeight: 700,
+    }}
+  >
+    {error}
+  </div>
+)}
+
  <div
   style={{
     display: "flex",
