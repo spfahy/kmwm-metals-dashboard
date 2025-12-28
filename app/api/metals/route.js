@@ -3,10 +3,22 @@
 
 import { NextResponse } from "next/server";
 
+// app/api/metals/route.js
+// CHANGE ONLY THIS FUNCTION
+
 function toNum(x) {
-  const n = Number(String(x ?? "").trim());
+  let s = String(x ?? "").trim();
+
+  // treat blanks as null (Number("") becomes 0 — that's your "all zeros" bug)
+  if (s === "") return null;
+
+  // strip simple wrapping quotes from CSV
+  if (s.startsWith('"') && s.endsWith('"')) s = s.slice(1, -1).trim();
+
+  const n = Number(s);
   return Number.isFinite(n) ? n : null;
 }
+
 
 // normalize header names so ANY of these work:
 // "tenor_months", "Tenor Months", "TENOR MONTHS", "tenorMonths", etc.
