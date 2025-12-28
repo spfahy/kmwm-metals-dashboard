@@ -32,7 +32,7 @@ export default function Home() {
           <div style={{ height: "82vh", background: "white" }}>
             <iframe
               title="Metals"
-              src="/metals"
+              src="/metals/page2"
               style={{ width: "100%", height: "100%", border: 0 }}
             />
           </div>
