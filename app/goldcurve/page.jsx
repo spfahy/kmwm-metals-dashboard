@@ -255,6 +255,29 @@ export default function GoldCurvePage() {
     ]);
     return Array.from(t).filter(Number.isFinite).sort((a, b) => a - b);
   }, [gold, silver]);
+  const goldSpot = useMemo(() => {
+    if (!gold || gold.length === 0) return null;
+    const t0 = Math.min(...gold.map((p) => Number(p.tenorMonths)));
+    return priceAt(gold, t0, "today");
+  }, [gold]);
+
+  const goldSpotPrior = useMemo(() => {
+    if (!hasPrior || !gold || gold.length === 0) return null;
+    const t0 = Math.min(...gold.map((p) => Number(p.tenorMonths)));
+    return priceAt(gold, t0, "prior");
+  }, [gold, hasPrior]);
+
+  const silverSpot = useMemo(() => {
+    if (!silver || silver.length === 0) return null;
+    const t0 = Math.min(...silver.map((p) => Number(p.tenorMonths)));
+    return priceAt(silver, t0, "today");
+  }, [silver]);
+
+  const silverSpotPrior = useMemo(() => {
+    if (!hasPrior || !silver || silver.length === 0) return null;
+    const t0 = Math.min(...silver.map((p) => Number(p.tenorMonths)));
+    return priceAt(silver, t0, "prior");
+  }, [silver, hasPrior]);
 
   const chartData = useMemo(() => {
     return tenors.map((t) => ({
@@ -293,6 +316,31 @@ const silverDomain = useMemo(
           </span>
         ) : null}
       </div>  
+      <div style={{ display: "flex", gap: 12, marginTop: 10, flexWrap: "wrap" }}>
+        <div style={{ border: "1px solid #111", padding: "8px 10px", borderRadius: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 700 }}>Gold Spot</div>
+          <div style={{ fontSize: 18 }}>
+            {goldSpot == null ? "—" : goldSpot.toFixed(2)}
+          </div>
+          {hasPrior ? (
+            <div style={{ fontSize: 12, opacity: 0.8 }}>
+              Prior: {goldSpotPrior == null ? "—" : goldSpotPrior.toFixed(2)}
+            </div>
+          ) : null}
+        </div>
+
+        <div style={{ border: "1px solid #111", padding: "8px 10px", borderRadius: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 700 }}>Silver Spot</div>
+          <div style={{ fontSize: 18 }}>
+            {silverSpot == null ? "—" : silverSpot.toFixed(2)}
+          </div>
+          {hasPrior ? (
+            <div style={{ fontSize: 12, opacity: 0.8 }}>
+              Prior: {silverSpotPrior == null ? "—" : silverSpotPrior.toFixed(2)}
+            </div>
+          ) : null}
+        </div>
+      </div>
 
       <DeltaStrip chartData={chartData} hasPrior={hasPrior} />
       
