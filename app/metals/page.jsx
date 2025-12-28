@@ -111,19 +111,13 @@ useEffect(() => {
      
   </div>
 </div>
-<pre
-  style={{
-    marginTop: 16,
-    padding: 12,
-    border: "1px solid #ddd",
-    borderRadius: 10,
-    background: "#fafafa",
+
     fontSize: 12,
     overflowX: "auto",
   }}
 >
   
-</pre>
+
 
     </main>
   );
