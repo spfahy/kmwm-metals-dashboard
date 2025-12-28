@@ -14,11 +14,7 @@ import {
 
 export default function MetalsPage() {
   const [data, setData] = useState(null);
- const goldSpot = data?.gold?.spot ?? "--";
-const goldChange = data?.gold?.change1d ?? "--";
 
-const silverSpot = data?.silver?.spot ?? "--";
-const silverChange = data?.silver?.change1d ?? "--";
 
 
   const [loading, setLoading] = useState(true);
@@ -36,28 +32,28 @@ useEffect(() => {
 
   return (
     <main style={{ padding: 24, fontFamily: "system-ui, Arial" }}>
-  {data && (
-  <div
-    style={{
-      marginBottom: 16,
-      padding: 12,
-      border: "1px solid #ddd",
-      borderRadius: 6,
-    }}
-  >
-    <div><strong>As of:</strong> {data.asOfDate}</div>
-    <div><strong>Prior:</strong> {data.priorDate}</div>
+ <div
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "baseline",
+    marginBottom: 16,
+    gap: 12,
+  }}
+>
+  <h1 style={{ margin: 0, fontSize: 26, fontWeight: 900 }}>
+    Gold & Silver — Term Structure
+  </h1>
+
+  <div style={{ fontSize: 13, opacity: 0.8 }}>
+    As of {data?.asOfDate ?? "—"}
+    {data?.priorDate ? ` | Prior ${data.priorDate}` : ""}
   </div>
-)}
+</div>
 
 
-      <h1 style={{ margin: 0, fontSize: 32, fontWeight: 900 }}>
-        KMWM Metals Dashboard — Page 2
-      </h1>
 
-      <div style={{ marginTop: 12 }}>
-        <a href="/goldcurve">← Back to Gold Curve</a>
-      </div>
+     
 
      <div style={{ marginTop: 24 }}>
        <div
@@ -92,23 +88,10 @@ useEffect(() => {
     <div>1D Change: {data?.silverDelta != null ? data.silverDelta.toFixed(2) : "—"}</div>
   </div>
 </div>
-
-       {data && (
-  <div
-    style={{
-      marginBottom: 16,
-      padding: 12,
-      border: "1px solid #ddd",
-      borderRadius: 6,
-    }}
-  >
-    <div><strong>As of:</strong> {data.asOfDate}</div>
-    <div><strong>Prior:</strong> {data.priorDate}</div>
-  </div>
-)}
+     
 
   
-     
+   
   </div>
 
 
