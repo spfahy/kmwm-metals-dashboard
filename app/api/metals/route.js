@@ -89,9 +89,16 @@ export async function GET() {
 
     const curves = rows
       .map((r) => ({
-        tenorMonths: toNum(
-          pickNorm(r, ["tenor_months", "tenorMonths", "Tenor Months", "tenor"])
-        ),
+      tenorMonths: toNum(
+  pick(r, [
+    "tenor_months",
+    "tenorMonths",
+    "tenor",
+    "Tenor (mo)",
+    "months"
+  ])
+),
+
         goldToday: toNum(pickNorm(r, ["gold_today", "goldToday", "Gold Today"])),
         goldPrior: toNum(pickNorm(r, ["gold_prior", "goldPrior", "Gold Prior"])),
         silverToday: toNum(
