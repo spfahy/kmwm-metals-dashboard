@@ -112,10 +112,7 @@ useEffect(() => {
   </div>
 
 
-    fontSize: 12,
-    overflowX: "auto",
-  }}
->
+   
   
 
 
