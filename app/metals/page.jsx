@@ -27,6 +27,25 @@ useEffect(() => {
     .finally(() => setLoading(false));
 }, []);
 
+  const curves = data?.curves ?? [];
+
+  const rows = useMemo(() => {
+    return curves
+      .filter((r) => Number.isFinite(r.tenorMonths))
+      .sort((a, b) => a.tenorMonths - b.tenorMonths);
+  }, [curves]);
+
+  const goldSpot = rows.length ? rows[0].goldToday : null;
+  const goldDelta =
+    rows.length && rows[0].goldPrior != null
+      ? rows[0].goldToday - rows[0].goldPrior
+      : null;
+
+  const silverSpot = rows.length ? rows[0].silverToday : null;
+  const silverDelta =
+    rows.length && rows[0].silverPrior != null
+      ? rows[0].silverToday - rows[0].silverPrior
+      : null;
 
 
 
@@ -112,7 +131,8 @@ useEffect(() => {
       </tr>
     </thead>
     <tbody>
-      {data?.curves?.map((row, i) => (
+    {rows.map((row, i) => (
+
         <tr
           key={i}
           style={{
