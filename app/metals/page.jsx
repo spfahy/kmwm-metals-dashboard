@@ -88,6 +88,61 @@ useEffect(() => {
     <div>1D Change: {data?.silverDelta != null ? data.silverDelta.toFixed(2) : "—"}</div>
   </div>
 </div>
+       <div
+  style={{
+    marginTop: 24,
+    padding: 12,
+    border: "1px solid #ddd",
+    borderRadius: 8,
+    background: "white",
+  }}
+>
+  <h2 style={{ margin: "0 0 12px 0", fontSize: 18 }}>
+    Term Structure (Today vs Prior)
+  </h2>
+
+  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+    <thead>
+      <tr>
+        <th style={{ textAlign: "left", padding: "6px 4px" }}>Tenor (mo)</th>
+        <th style={{ textAlign: "right", padding: "6px 4px" }}>Gold Today</th>
+        <th style={{ textAlign: "right", padding: "6px 4px" }}>Gold Prior</th>
+        <th style={{ textAlign: "right", padding: "6px 4px" }}>Silver Today</th>
+        <th style={{ textAlign: "right", padding: "6px 4px" }}>Silver Prior</th>
+      </tr>
+    </thead>
+    <tbody>
+      {data?.curves?.map((row, i) => (
+        <tr
+          key={i}
+          style={{
+            background:
+              row.tenorMonths <= 3 ? "#f9fafb" : "transparent",
+          }}
+        >
+          <td style={{ padding: "4px" }}>{row.tenorMonths}</td>
+
+          <td style={{ padding: "4px", textAlign: "right" }}>
+            {row.goldToday != null ? row.goldToday.toFixed(2) : "—"}
+          </td>
+
+          <td style={{ padding: "4px", textAlign: "right", opacity: 0.7 }}>
+            {row.goldPrior != null ? row.goldPrior.toFixed(2) : "—"}
+          </td>
+
+          <td style={{ padding: "4px", textAlign: "right" }}>
+            {row.silverToday != null ? row.silverToday.toFixed(2) : "—"}
+          </td>
+
+          <td style={{ padding: "4px", textAlign: "right", opacity: 0.7 }}>
+            {row.silverPrior != null ? row.silverPrior.toFixed(2) : "—"}
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+
      
 
   
