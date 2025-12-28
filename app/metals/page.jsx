@@ -134,8 +134,9 @@ useEffect(() => {
     }}
   >
     <strong>Gold</strong>
-    <div>Spot: {data?.goldSpot != null ? data.goldSpot.toFixed(2) : "—"}</div>
-    <div>1D Change: {data?.goldDelta != null ? data.goldDelta.toFixed(2) : "—"}</div>
+<div>Spot: {goldSpot != null ? goldSpot.toFixed(2) : "—"}</div>
+<div>1D Change: {goldDelta != null ? goldDelta.toFixed(2) : "—"}</div>
+
   </div>
 
   <div
@@ -146,8 +147,9 @@ useEffect(() => {
     }}
   >
     <strong>Silver</strong>
-    <div>Spot: {data?.silverSpot != null ? data.silverSpot.toFixed(2) : "—"}</div>
-    <div>1D Change: {data?.silverDelta != null ? data.silverDelta.toFixed(2) : "—"}</div>
+    <div>Spot: {silverSpot != null ? silverSpot.toFixed(2) : "—"}</div>
+<div>1D Change: {silverDelta != null ? silverDelta.toFixed(2) : "—"}</div>
+
   </div>
 </div>
        <div
