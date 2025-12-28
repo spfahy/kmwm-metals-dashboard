@@ -69,6 +69,17 @@ export async function GET() {
         { status: 500 }
       );
     }
+const headers = lines[0].split(",").map((h) => h.trim());
+console.log("HEADERS:", headers);
+
+const rows = lines.slice(1).map((line) => {
+  const cols = line.split(",");
+  const obj = {};
+  headers.forEach((h, i) => (obj[h] = cols[i]));
+  return obj;
+});
+
+console.log("FIRST ROW:", rows[0]);
 
     const rawHeaders = lines[0].split(",").map((h) => h.trim());
     const headers = rawHeaders.map(normKey);
