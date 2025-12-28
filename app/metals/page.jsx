@@ -19,8 +19,7 @@ export default function MetalsPage() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [rawText, setRawText] = useState("");
-  const [rawText, setRawText] = useState("");
+    const [rawText, setRawText] = useState("");
     const [showRaw, setShowRaw] = useState(false);
 
  useEffect(() => {
