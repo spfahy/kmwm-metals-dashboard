@@ -19,34 +19,43 @@ export default function MetalsPage() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [rawText, setRawText] = useState("");
     const [showRaw, setShowRaw] = useState(false);
 
-  useEffect(() => {
-    let alive = true;
+ useEffect(() => {
+  let alive = true;
 
-    fetch("/api/metals", { cache: "no-store" })
-      .then(async (res) => {
-        const text = await res.text();
+  fetch("/api/metals", { cache: "no-store" })
+    .then(async (res) => {
+      const text = await res.text();
 
-        // If the API returned HTML (common when route breaks), show it as an error.
-        if (!text.trim().startsWith("{") && !text.trim().startsWith("[")) {
-          throw new Error("API did not return JSON. First 200 chars: " + text.slice(0, 200));
-        }
+      // Always capture what came back (so we can display it)
+      if (alive) setRawText(text.slice(0, 500));
 
-        const json = JSON.parse(text);
-        if (alive) setData(json);
-      })
-      .catch((e) => {
-        if (alive) setError(String(e?.message || e));
-      })
-      .finally(() => {
-        if (alive) setLoading(false);
-      });
+      if (!res.ok) {
+        throw new Error(`API status ${res.status}. First 200 chars: ${text.slice(0, 200)}`);
+      }
 
-    return () => {
-      alive = false;
-    };
-  }, []);
+      const trimmed = text.trim();
+      if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+        throw new Error("API did not return JSON. First 200 chars: " + trimmed.slice(0, 200));
+      }
+
+      const json = JSON.parse(trimmed);
+      if (alive) setData(json);
+    })
+    .catch((e) => {
+      if (alive) setError(String(e?.message || e));
+    })
+    .finally(() => {
+      if (alive) setLoading(false);
+    });
+
+  return () => {
+    alive = false;
+  };
+}, []);
+
 
 
    const curves = data?.curves ?? [];
