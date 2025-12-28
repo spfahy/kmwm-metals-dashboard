@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 
 function toNum(x) {
-  const n = Number(String(x ?? "").trim());
+  const s = String(x ?? "").trim();
+  if (s === "") return null;     // IMPORTANT: blank stays blank (not 0)
+  const n = Number(s);
   return Number.isFinite(n) ? n : null;
 }
+
 
 function pick(obj, keys) {
   for (const k of keys) {
