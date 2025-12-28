@@ -174,15 +174,27 @@ function DeltaStrip({ chartData, hasPrior }) {
 
   const last = chartData[chartData.length - 1];
 
-  const goldDelta =
-    hasPrior && last.goldToday != null && last.goldPrior != null
-      ? last.goldToday - last.goldPrior
-      : null;
+ const goldSpotToday =
+  chartData?.[0]?.goldToday ?? null;
 
-  const silverDelta =
-    hasPrior && last.silverToday != null && last.silverPrior != null
-      ? last.silverToday - last.silverPrior
-      : null;
+const goldSpotPrior =
+  chartData?.[0]?.goldPrior ?? null;
+
+const silverSpotToday =
+  chartData?.[0]?.silverToday ?? null;
+
+const silverSpotPrior =
+  chartData?.[0]?.silverPrior ?? null;
+
+const goldDelta =
+  hasPrior && goldSpotToday != null && goldSpotPrior != null
+    ? goldSpotToday - goldSpotPrior
+    : null;
+
+const silverDelta =
+  hasPrior && silverSpotToday != null && silverSpotPrior != null
+    ? silverSpotToday - silverSpotPrior
+    : null;
 
   return (
     <div
