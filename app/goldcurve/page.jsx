@@ -109,7 +109,7 @@ function CurveTooltip({ active, payload, label }) {
   const sP = byKey.silverPrior;
 
   const goldDelta = gT != null && gP != null ? Number(gT) - Number(gP) : null;
-  const silverDelta = sT != null && sP != null ? Number(sT) - Number(sP) : null;
+  
 
   return (
     <div>
@@ -180,15 +180,7 @@ const goldSpotPrior = chartData?.[0]?.goldPrior ?? null;
 const silverSpotToday = chartData?.[0]?.silverToday ?? null;
 const silverSpotPrior = chartData?.[0]?.silverPrior ?? null;
 
-const goldDelta =
-  hasPrior && goldSpotToday != null && goldSpotPrior != null
-    ? goldSpotToday - goldSpotPrior
-    : null;
 
-const silverDelta =
-  hasPrior && silverSpotToday != null && silverSpotPrior != null
-    ? silverSpotToday - silverSpotPrior
-    : null;
 
 
 const goldDelta =
