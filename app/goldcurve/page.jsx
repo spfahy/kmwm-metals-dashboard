@@ -108,7 +108,7 @@ function CurveTooltip({ active, payload, label }) {
   const sT = byKey.silverToday;
   const sP = byKey.silverPrior;
 
-  const goldDelta = gT != null && gP != null ? Number(gT) - Number(gP) : null;
+  
   
 
   return (
