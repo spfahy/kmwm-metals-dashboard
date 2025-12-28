@@ -2,8 +2,7 @@
 // REPLACE THE ENTIRE FILE WITH THIS (full file)
 
 import { NextResponse } from "next/server";
-console.log("HEADERS:", headers);
-console.log("FIRST ROW:", rows[0]);
+
 
 // app/api/metals/route.js
 // CHANGE ONLY THIS FUNCTION
@@ -69,13 +68,7 @@ export async function GET() {
         { status: 500 }
       );
     }
-const headers = lines[0].split(",").map((h) => h.trim());
-const rows = lines.slice(1).map((line) => {
-  const cols = line.split(",");
-  const obj = {};
-  headers.forEach((h, i) => (obj[h] = cols[i]));
-  return obj;
-});
+
 
 
 
