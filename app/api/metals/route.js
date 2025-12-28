@@ -45,7 +45,11 @@ export async function GET() {
       );
     }
 
-    const headers = lines[0].split(",").map((h) => h.trim());
+    const headers = lines[0]
+  .replace(/^\uFEFF/, "") // strip UTF-8 BOM if present
+  .split(",")
+  .map((h) => h.trim());
+
     const rows = lines.slice(1).map((line) => {
       const cols = line.split(",");
       const obj = {};
