@@ -21,33 +21,35 @@ export default function MetalsPage() {
   const [error, setError] = useState("");
     const [showRaw, setShowRaw] = useState(false);
 
-useEffect(() => {
- fetch("/api/metals")
-  .then(async (r) => {
-    const txt = await r.text();
-    let j = null;
+  useEffect(() => {
+    let alive = true;
 
-    try {
-      j = JSON.parse(txt);
-    } catch (e) {
-      setError("API did not return JSON. First 200 chars: " + txt.slice(0, 200));
-      return;
-    }
+    fetch("/api/metals", { cache: "no-store" })
+      .then(async (res) => {
+        const text = await res.text();
 
-    if (j == null) {
-      setError("API returned null (no data). Check /api/metals route.");
-      setData(null);
-      return;
-    }
+        // If the API returned HTML (common when route breaks), show it as an error.
+        if (!text.trim().startsWith("{") && !text.trim().startsWith("[")) {
+          throw new Error("API did not return JSON. First 200 chars: " + text.slice(0, 200));
+        }
 
-    setData(j);
-  })
-  .catch(() => setError("Failed to load data"))
-  .finally(() => setLoading(false));
-;
-}, []);
+        const json = JSON.parse(text);
+        if (alive) setData(json);
+      })
+      .catch((e) => {
+        if (alive) setError(String(e?.message || e));
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
 
-  const curves = data?.curves ?? [];
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+
+   const curves = data?.curves ?? [];
 
   const rows = useMemo(() => {
     return curves
@@ -55,17 +57,24 @@ useEffect(() => {
       .sort((a, b) => a.tenorMonths - b.tenorMonths);
   }, [curves]);
 
-  const goldSpot = rows.length ? rows[0].goldToday : null;
+  // Pick Spot from tenorMonths === 1 if present; otherwise first row.
+  const spotRow =
+    rows.find((r) => r.tenorMonths === 1) ||
+    rows.find((r) => r.goldToday != null || r.silverToday != null) ||
+    null;
+
+  const goldSpot = spotRow?.goldToday ?? null;
   const goldDelta =
-    rows.length && rows[0].goldPrior != null
-      ? rows[0].goldToday - rows[0].goldPrior
+    spotRow && spotRow.goldToday != null && spotRow.goldPrior != null
+      ? Number(spotRow.goldToday) - Number(spotRow.goldPrior)
       : null;
 
-  const silverSpot = rows.length ? rows[0].silverToday : null;
+  const silverSpot = spotRow?.silverToday ?? null;
   const silverDelta =
-    rows.length && rows[0].silverPrior != null
-      ? rows[0].silverToday - rows[0].silverPrior
+    spotRow && spotRow.silverToday != null && spotRow.silverPrior != null
+      ? Number(spotRow.silverToday) - Number(spotRow.silverPrior)
       : null;
+
 
 
 
@@ -137,6 +146,7 @@ useEffect(() => {
 <div>Spot: {goldSpot != null ? goldSpot.toFixed(2) : "—"}</div>
 <div>1D Change: {goldDelta != null ? goldDelta.toFixed(2) : "—"}</div>
 
+
   </div>
 
   <div
@@ -147,8 +157,9 @@ useEffect(() => {
     }}
   >
     <strong>Silver</strong>
-    <div>Spot: {silverSpot != null ? silverSpot.toFixed(2) : "—"}</div>
+   <div>Spot: {silverSpot != null ? silverSpot.toFixed(2) : "—"}</div>
 <div>1D Change: {silverDelta != null ? silverDelta.toFixed(2) : "—"}</div>
+
 
   </div>
 </div>
