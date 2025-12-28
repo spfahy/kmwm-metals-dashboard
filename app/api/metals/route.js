@@ -2,6 +2,8 @@
 // REPLACE THE ENTIRE FILE WITH THIS (full file)
 
 import { NextResponse } from "next/server";
+console.log("HEADERS:", headers);
+console.log("FIRST ROW:", rows[0]);
 
 // app/api/metals/route.js
 // CHANGE ONLY THIS FUNCTION
