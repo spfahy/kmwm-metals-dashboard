@@ -19,6 +19,8 @@ export default function MetalsPage() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+    const [showRaw, setShowRaw] = useState(false);
+
 useEffect(() => {
   fetch("/api/metals")
     .then((r) => r.json())
@@ -161,6 +163,38 @@ useEffect(() => {
       ))}
     </tbody>
   </table>
+         <div style={{ marginTop: 12 }}>
+  <button
+    onClick={() => setShowRaw((v) => !v)}
+    style={{
+      padding: "8px 10px",
+      border: "1px solid #ddd",
+      borderRadius: 8,
+      background: "white",
+      cursor: "pointer",
+      fontSize: 13,
+    }}
+  >
+    {showRaw ? "Hide raw JSON" : "Show raw JSON"}
+  </button>
+</div>
+
+{showRaw && (
+  <pre
+    style={{
+      marginTop: 10,
+      padding: 12,
+      border: "1px solid #ddd",
+      borderRadius: 8,
+      background: "#fafafa",
+      fontSize: 12,
+      overflowX: "auto",
+    }}
+  >
+    {JSON.stringify(data, null, 2)}
+  </pre>
+)}
+
 </div>
 
      
