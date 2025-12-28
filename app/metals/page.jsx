@@ -60,6 +60,39 @@ useEffect(() => {
       </div>
 
      <div style={{ marginTop: 24 }}>
+       <div
+  style={{
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 16,
+    marginBottom: 24,
+  }}
+>
+  <div
+    style={{
+      padding: 12,
+      border: "1px solid #ddd",
+      borderRadius: 6,
+    }}
+  >
+    <strong>Gold</strong>
+    <div>Spot: {data?.goldSpot != null ? data.goldSpot.toFixed(2) : "—"}</div>
+    <div>1D Change: {data?.goldDelta != null ? data.goldDelta.toFixed(2) : "—"}</div>
+  </div>
+
+  <div
+    style={{
+      padding: 12,
+      border: "1px solid #ddd",
+      borderRadius: 6,
+    }}
+  >
+    <strong>Silver</strong>
+    <div>Spot: {data?.silverSpot != null ? data.silverSpot.toFixed(2) : "—"}</div>
+    <div>1D Change: {data?.silverDelta != null ? data.silverDelta.toFixed(2) : "—"}</div>
+  </div>
+</div>
+
        {data && (
   <div
     style={{
@@ -74,26 +107,8 @@ useEffect(() => {
   </div>
 )}
 
-  <h2 style={{ marginBottom: 12 }}>Metals Overview</h2>
-
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-      gap: 16,
-    }}
-  >
-    <div style={{ padding: 16, border: "1px solid #ddd", borderRadius: 10 }}>
-      <strong>Gold</strong>
-      <div>Spot: {goldSpot}</div>
-      <div>1D Change: {goldChange}</div>
-     </div>
-
-    <div style={{ padding: 16, border: "1px solid #ddd", borderRadius: 10 }}>
-      <strong>Silver</strong>
-      <div>Spot: {silverSpot}</div>
-      <div>1D Change: {silverChange}</div>
-    </div>
+  
+     
   </div>
 </div>
 <pre
@@ -107,7 +122,7 @@ useEffect(() => {
     overflowX: "auto",
   }}
 >
-  {JSON.stringify(data, null, 2)}
+  
 </pre>
 
     </main>
