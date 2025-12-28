@@ -81,15 +81,7 @@ const rows = lines.slice(1).map((line) => {
 
 console.log("FIRST ROW:", rows[0]);
 
-    const rawHeaders = lines[0].split(",").map((h) => h.trim());
-    const headers = rawHeaders.map(normKey);
-
-    const rows = lines.slice(1).map((line) => {
-      const cols = line.split(",");
-      const obj = {};
-      headers.forEach((h, i) => (obj[h] = cols[i]));
-      return obj;
-    });
+  
 
     const first = rows[0] || {};
 
