@@ -233,7 +233,7 @@ export default function GoldCurvePage() {
         setLoading(true);
         setError("");
 
-        const res = await fetch("/api/goldcurve", { cache: "no-store" });
+        const res = await fetch("/api/metals", { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         const json = await res.json();
@@ -256,14 +256,7 @@ export default function GoldCurvePage() {
   const silver = curves.SILVER || [];
 
   const hasPrior = !!data?.priorDate;
-
-  const tenors = useMemo(() => {
-    const t = new Set([
-      ...gold.map((p) => Number(p.tenorMonths)),
-      ...silver.map((p) => Number(p.tenorMonths)),
-    ]);
-    return Array.from(t).filter(Number.isFinite).sort((a, b) => a - b);
-  }, [gold, silver]);
+const tenors = [0, 1, 2, 3, 4, 5, 12];
   const goldSpot = useMemo(() => {
     if (!gold || gold.length === 0) return null;
     const t0 = Math.min(...gold.map((p) => Number(p.tenorMonths)));
