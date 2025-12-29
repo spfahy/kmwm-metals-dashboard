@@ -99,7 +99,10 @@ export async function GET() {
     for (const r of rows) {
       const metal = String(getByNorm(r, ["metal"]) ?? "").trim().toUpperCase();
       const tenorMonths = toNum(getByNorm(r, ["tenormonths"]));
-      const price = toNum(getByNorm(r, ["price"]));
+      const price = toNum(
+  getByNorm(r, ["price", "cmecontrprice", "cmecontractprice"])
+);
+
 
       if (!metal || tenorMonths == null || price == null) continue;
 
