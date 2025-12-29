@@ -301,16 +301,17 @@ const tenors = [0, 1, 2, 3, 4, 5, 12];
   });
 }, [gold, silver]);
 
-
- const goldDomain = useMemo(
-  () => computeDomain(chartData.flatMap((d) => [d.goldToday, d.goldPrior]), 0.02),
+const goldDomain = useMemo(
+  () => computeDomain(chartData.map(d => d.goldPct), 0.25),
   [chartData]
 );
 
 const silverDomain = useMemo(
-  () => computeDomain(chartData.flatMap((d) => [d.silverToday, d.silverPrior]), 0.03),
+  () => computeDomain(chartData.map(d => d.silverPct), 0.25),
   [chartData]
 );
+
+
 
 
   if (loading) return <div style={{ padding: 24 }}>Loading gold curve…</div>;
@@ -373,7 +374,7 @@ const silverDomain = useMemo(
   yAxisId="left"
   domain={goldDomain}
   tick={{ fontSize: 12 }}
-  label={{ value: "Gold (United States dollars)", angle: -90, position: "insideLeft" }}
+  label={{ value: "Gold (% vs Spot)", angle: -90, position: "insideLeft" }}
 />
 
 <YAxis
@@ -381,7 +382,7 @@ const silverDomain = useMemo(
   orientation="right"
   domain={silverDomain}
   tick={{ fontSize: 12 }}
-  label={{ value: "Silver (United States dollars)", angle: 90, position: "insideRight" }}
+  label={{ value: "Silver (% vs Spot)", angle: 90, position: "insideRight" }}
 />
 
 
