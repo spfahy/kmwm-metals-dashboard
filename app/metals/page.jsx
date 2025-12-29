@@ -66,11 +66,13 @@ export default function MetalsPage() {
       .sort((a, b) => a.tenorMonths - b.tenorMonths);
   }, [curves]);
 
-  // Spot: prefer tenorMonths === 1, else first row with values, else null
-  const spotRow =
-    rows.find((r) => r.tenorMonths === 1) ||
-    rows.find((r) => r.goldToday != null || r.silverToday != null) ||
-    null;
+    // Spot: use tenorMonths === 0 (sheet-defined spot). Fallback to 1 if 0 is missing.
+const spotRow =
+  rows.find((r) => r.tenorMonths === 0) ||
+  rows.find((r) => r.tenorMonths === 1) ||
+  rows.find((r) => r.goldToday != null || r.silverToday != null) ||
+  null;
+
 
   const goldSpot = spotRow?.goldToday ?? null;
   const goldDelta =
