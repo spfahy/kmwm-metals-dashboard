@@ -10,9 +10,12 @@ function toNum(x) {
 function normKey(k) {
   return String(k ?? "")
     .trim()
+    .replace(/^"+|"+$/g, "")      // strip wrapping quotes
+    .replace(/"/g, "")            // strip any remaining quotes
     .toLowerCase()
     .replace(/[\s_]+/g, "");
 }
+
 
 export async function GET() {
   try {
