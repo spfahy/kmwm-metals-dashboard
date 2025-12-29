@@ -27,7 +27,13 @@ export async function GET(req) {
     return NextResponse.json({ ok: false, error: "METALS_CSV_URL not set" }, { status: 500 });
   }
 
-  const res = await fetch(csvUrl, { cache: "no-store" });
+  const bust = `cb=${Date.now()}`;
+const url = csvUrl.includes("?") ? `${csvUrl}&${bust}` : `${csvUrl}?${bust}`;
+const res = await fetch(url, {
+  cache: "no-store",
+  headers: { "Cache-Control": "no-cache" },
+});
+
   const text = await res.text();
   const lines = text.split("\n").filter(Boolean);
   const rows = lines.slice(1);
