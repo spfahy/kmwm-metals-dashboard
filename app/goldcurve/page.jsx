@@ -282,14 +282,25 @@ const tenors = [0, 1, 2, 3, 4, 5, 12];
   }, [silver, hasPrior]);
 
   const chartData = useMemo(() => {
-    return tenors.map((t) => ({
+  const g0 = priceAt(gold, 0, "today");
+  const s0 = priceAt(silver, 0, "today");
+
+  return [0, 1, 2, 3, 4, 5, 12].map((t) => {
+    const g = priceAt(gold, t, "today");
+    const s = priceAt(silver, t, "today");
+
+    return {
       tenor: t,
-      goldToday: priceAt(gold, t, "today"),
-      goldPrior: hasPrior ? priceAt(gold, t, "prior") : null,
-      silverToday: priceAt(silver, t, "today"),
-      silverPrior: hasPrior ? priceAt(silver, t, "prior") : null,
-    }));
-  }, [tenors, gold, silver, hasPrior]);
+      goldPct: g0 && g ? ((g / g0) - 1) * 100 : null,
+      silverPct: s0 && s ? ((s / s0) - 1) * 100 : null,
+      diffPct:
+        g0 && s0 && g && s
+          ? ((g / g0) - (s / s0)) * 100
+          : null,
+    };
+  });
+}, [gold, silver]);
+
 
  const goldDomain = useMemo(
   () => computeDomain(chartData.flatMap((d) => [d.goldToday, d.goldPrior]), 0.02),
@@ -376,16 +387,12 @@ const silverDomain = useMemo(
 
            <Tooltip formatter={(v) => (v == null ? "" : Number(v).toFixed(2))} />
 
+<Line yAxisId="left" type="monotone" dataKey="goldPct" dot={false} stroke="#b89c2f" strokeWidth={3} />
+<Line yAxisId="right" type="monotone" dataKey="silverPct" dot={false} stroke="#6b7280" strokeWidth={3} />
 
-            <Line yAxisId="left" type="monotone" dataKey="goldToday" dot={false} stroke="#111" strokeWidth={3} />
-{hasPrior ? (
-  <Line yAxisId="left" type="monotone" dataKey="goldPrior" dot={false} stroke="#111" strokeWidth={2} strokeDasharray="6 4" />
-) : null}
+      
 
-<Line yAxisId="right" type="monotone" dataKey="silverToday" dot={false} stroke="#666" strokeWidth={3} />
-{hasPrior ? (
-  <Line yAxisId="right" type="monotone" dataKey="silverPrior" dot={false} stroke="#666" strokeWidth={2} strokeDasharray="6 4" />
-) : null}
+
 
           </LineChart>
         </ResponsiveContainer>
