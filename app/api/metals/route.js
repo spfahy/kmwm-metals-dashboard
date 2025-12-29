@@ -156,6 +156,7 @@ const priorRowsRes = await client.query(
 );
 
 
+
 const priorDate =
   priorRowsRes.rows?.length
     ? String(priorRowsRes.rows[0].as_of_date).slice(0, 10)
