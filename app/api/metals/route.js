@@ -129,38 +129,48 @@ const asOfDate =
     const client = new Client({ connectionString: dbUrl });
     await client.connect();
 
-    const priorDateRes = await client.query(
-      `
-      SELECT MAX(as_of_date) AS prior_date
-      FROM metals_curve_history
-      WHERE as_of_date < $1
-      `,
-      [asOfDate]
-    );
-
-    const priorDate = priorDateRes.rows?.[0]?.prior_date
-      ? String(priorDateRes.rows[0].prior_date).slice(0, 10)
-      : "";
+  
 
     const priorMap = new Map();
-    if (priorDate) {
-      const priorRowsRes = await client.query(
-        `
-        SELECT metal, tenor_months, price
-        FROM metals_curve_history
-        WHERE as_of_date = $1
-        `,
-        [priorDate]
-      );
+    // Prior date comes from database: asOfDate - 1 day
+const priorRowsRes = await client.query(
+  `
+  SELECT metal, tenor_months, price
+  FROM metals_curve_history
+  WHERE as_of_date = (
+  SELECT MAX(as_of_date)
+  FROM metals_curve_history
+  WHERE as_of_date < $1::date
+)
+const priorRowsRes = await client.query(
+  `
+  SELECT as_of_date, metal, tenor_months, price
+  FROM metals_curve_history
+  WHERE as_of_date = (
+    SELECT MAX(as_of_date)
+    FROM metals_curve_history
+    WHERE as_of_date < $1::date
+  )
+  `,
+  [asOfDate]
+);
 
-      for (const pr of priorRowsRes.rows || []) {
-        const metal = String(pr.metal || "").toUpperCase();
-        const tenorMonths = Number(pr.tenor_months);
-        const price = Number(pr.price);
-        if (!metal || !Number.isFinite(tenorMonths) || !Number.isFinite(price)) continue;
-        priorMap.set(`${metal}|${tenorMonths}`, price);
-      }
-    }
+
+const priorDate =
+  priorRowsRes.rows?.length
+    ? String(priorRowsRes.rows[0].as_of_date).slice(0, 10)
+    : "";
+
+
+const priorMap = new Map();
+for (const pr of priorRowsRes.rows || []) {
+  const metal = String(pr.metal || "").toUpperCase();
+  const tenorMonths = Number(pr.tenor_months);
+  const price = Number(pr.price);
+  if (!metal || !Number.isFinite(tenorMonths) || !Number.isFinite(price)) continue;
+  priorMap.set(`${metal}|${tenorMonths}`, price);
+}
+
 
     await client.end();
 
