@@ -133,16 +133,9 @@ const asOfDate =
 
     const priorMap = new Map();
     // Prior date comes from database: asOfDate - 1 day
-const priorRowsRes = await client.query(
-  `
-  SELECT metal, tenor_months, price
-  FROM metals_curve_history
-  WHERE as_of_date = (
-  SELECT MAX(as_of_date)
-  FROM metals_curve_history
-  WHERE as_of_date < $1::date
-)
-const priorRowsRes = await client.query(
+
+
+(const priorRowsRes = await client.query(
   `
   SELECT as_of_date, metal, tenor_months, price
   FROM metals_curve_history
@@ -155,6 +148,8 @@ const priorRowsRes = await client.query(
   [asOfDate]
 );
 
+const priorDate =
+  priorRowsRes.rows?.length ? String(priorRowsRes.rows[0].as_of_date).slice(0, 10) : "";
 
 
 const priorDate =
