@@ -21,24 +21,14 @@ function LegendRow({ hasPrior }) {
         Gold Today
       </span>
 
-      {hasPrior ? (
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-          <span style={{ width: 18, borderTop: "3px dashed #111", display: "inline-block" }} />
-          Gold Prior
-        </span>
-      ) : null}
+    
 
       <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
         <span style={{ width: 18, borderTop: "3px solid #666", display: "inline-block" }} />
         Silver Today
       </span>
 
-      {hasPrior ? (
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-          <span style={{ width: 18, borderTop: "3px dashed #666", display: "inline-block" }} />
-          Silver Prior
-        </span>
-      ) : null}
+     
     </div>
   );
 }
@@ -386,7 +376,7 @@ const silverDomain = useMemo(
 />
 
 
-           <Tooltip formatter={(v) => (v == null ? "" : Number(v).toFixed(2))} />
+           <Tooltip formatter={(v) => (v == null ? "—" : `${Number(v).toFixed(3)}%`)} />
 
 <Line yAxisId="left" type="monotone" dataKey="goldPct" dot={false} stroke="#b89c2f" strokeWidth={3} />
 <Line yAxisId="right" type="monotone" dataKey="silverPct" dot={false} stroke="#6b7280" strokeWidth={3} />
