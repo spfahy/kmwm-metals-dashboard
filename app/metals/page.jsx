@@ -55,7 +55,7 @@ export default function MetalsPage() {
 
   const rows = useMemo(() => {
     return (curves || [])
-      .filter((r) => Number.isFinite(Number(r.tenorMonths)) && Number(r.tenorMonths) > 0)
+      .filter((r) => Number.isFinite(Number(r.tenorMonths)) && Number(r.tenorMonths) >= 0)
       .map((r) => ({
         tenorMonths: Number(r.tenorMonths),
         goldToday: r.goldToday == null ? null : Number(r.goldToday),
