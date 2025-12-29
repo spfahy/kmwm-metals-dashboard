@@ -6,12 +6,31 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
 });
 
+function classifyMetal(m) {
+  const s = String(m || "").trim().toLowerCase();
+  if (!s) return null;
+
+  // Gold aliases
+  if (s === "gold" || s === "gc" || s === "xau" || s.includes("gold")) return "Gold";
+
+  // Silver aliases
+  if (s === "silver" || s === "si" || s === "xag" || s.includes("silver")) return "Silver";
+
+  return null;
+}
+
+function toNum(v) {
+  if (v == null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 export async function GET() {
   try {
     const client = await pool.connect();
 
     try {
-      // Pull latest curve
+      // Latest curve (view)
       const curveRes = await client.query(`
         SELECT
           metal,
@@ -22,7 +41,7 @@ export async function GET() {
         ORDER BY metal, tenor_months
       `);
 
-      // Pull prior curve (most recent prior date)
+      // Prior curve: most recent prior date in history
       const priorRes = await client.query(`
         WITH dates AS (
           SELECT DISTINCT as_of_date
@@ -40,30 +59,45 @@ export async function GET() {
         ORDER BY metal, tenor_months
       `);
 
-      const todayMap = {};
-      const priorMap = {};
+      const todayBy = {}; // key: Gold_12
+      const priorBy = {};
 
-      curveRes.rows.forEach((r) => {
-        const key = `${r.metal}_${r.tenor_months}`;
-        todayMap[key] = r;
-      });
+      // Build maps using normalized metal labels
+      for (const r of curveRes.rows) {
+        const label = classifyMetal(r.metal);
+        if (!label) continue;
+        const tenor = Number(r.tenor_months);
+        if (!Number.isFinite(tenor)) continue;
+        todayBy[`${label}_${tenor}`] = {
+          price: toNum(r.price),
+          as_of_date: r.as_of_date,
+        };
+      }
 
-      priorRes.rows.forEach((r) => {
-        const key = `${r.metal}_${r.tenor_months}`;
-        priorMap[key] = r;
-      });
+      for (const r of priorRes.rows) {
+        const label = classifyMetal(r.metal);
+        if (!label) continue;
+        const tenor = Number(r.tenor_months);
+        if (!Number.isFinite(tenor)) continue;
+        priorBy[`${label}_${tenor}`] = {
+          price: toNum(r.price),
+          as_of_date: r.as_of_date,
+        };
+      }
 
+      // Tenors union
       const tenors = new Set();
-      curveRes.rows.forEach((r) => tenors.add(r.tenor_months));
-      priorRes.rows.forEach((r) => tenors.add(r.tenor_months));
+      Object.keys(todayBy).forEach((k) => tenors.add(Number(k.split("_")[1])));
+      Object.keys(priorBy).forEach((k) => tenors.add(Number(k.split("_")[1])));
 
       const curves = Array.from(tenors)
+        .filter((t) => Number.isFinite(t))
         .sort((a, b) => a - b)
         .map((tenor) => {
-          const goldToday = todayMap[`Gold_${tenor}`]?.price ?? null;
-          const goldPrior = priorMap[`Gold_${tenor}`]?.price ?? null;
-          const silverToday = todayMap[`Silver_${tenor}`]?.price ?? null;
-          const silverPrior = priorMap[`Silver_${tenor}`]?.price ?? null;
+          const goldToday = todayBy[`Gold_${tenor}`]?.price ?? null;
+          const goldPrior = priorBy[`Gold_${tenor}`]?.price ?? null;
+          const silverToday = todayBy[`Silver_${tenor}`]?.price ?? null;
+          const silverPrior = priorBy[`Silver_${tenor}`]?.price ?? null;
 
           return {
             tenorMonths: tenor,
@@ -74,9 +108,9 @@ export async function GET() {
           };
         });
 
+      // Dates
       const asOfDate =
         curveRes.rows.length > 0 ? curveRes.rows[0].as_of_date : null;
-
       const priorDate =
         priorRes.rows.length > 0 ? priorRes.rows[0].as_of_date : null;
 
