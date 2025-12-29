@@ -131,7 +131,7 @@ const asOfDate =
 
   
 
-    const priorMap = new Map();
+    
     // Prior date comes from database: asOfDate - 1 day
 
 
