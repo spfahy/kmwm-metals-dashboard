@@ -143,6 +143,7 @@ export async function GET() {
           real_10yr_yld, dollar_index, deficit_gdp_flag, inserted_at
         )
         VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())
+        ON CONFLICT DO NOTHING
         `,
         [asOfDate, metal, tenorMonths, price, real10y, dollarIndex, deficitFlag]
       );
