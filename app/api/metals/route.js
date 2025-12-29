@@ -135,7 +135,7 @@ const asOfDate =
     // Prior date comes from database: asOfDate - 1 day
 
 
-(const priorRowsRes = await client.query(
+const priorRowsRes = await client.query(
   `
   SELECT as_of_date, metal, tenor_months, price
   FROM metals_curve_history
