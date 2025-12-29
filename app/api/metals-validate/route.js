@@ -1,62 +1,71 @@
-// app/api/metals-validate/route.js
+import { NextResponse } from "next/server";
 import { Pool } from "pg";
 
-const REQUIRED_TOKEN = process.env.METALS_INGEST_TOKEN;
-const DATABASE_URL = process.env.DATABASE_URL;
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+});
 
-let pool;
-function getPool() {
-  if (!pool) {
-    if (!DATABASE_URL) throw new Error("Missing DATABASE_URL env var");
-    pool = new Pool({ connectionString: DATABASE_URL, max: 5 });
-  }
-  return pool;
-}
-
-function jsonResponse(obj, status = 200) {
-  return new Response(JSON.stringify(obj), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
-
-export async function GET(req) {
+export async function GET() {
+  const client = await pool.connect();
   try {
-    // Auth (same token as ingest)
-    const auth = req.headers.get("authorization") || "";
-    const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
-    if (!REQUIRED_TOKEN || token !== REQUIRED_TOKEN) {
-      return jsonResponse({ ok: false, error: "Unauthorized" }, 401);
+    // Find the most recent as_of_date in history
+    const d = await client.query(`
+      SELECT MAX(as_of_date) AS as_of_date
+      FROM metals_curve_history
+    `);
+
+    const asOfDate = d.rows?.[0]?.as_of_date;
+    if (!asOfDate) {
+      return NextResponse.json(
+        { ok: false, error: "No metals_curve_history data found" },
+        { status: 400 }
+      );
     }
 
-    const client = await getPool().connect();
-    try {
-      const latestMax = await client.query(
-        `select max(as_of_date) as max_date from metals_curve_latest`
-      );
-      const histMax = await client.query(
-        `select max(as_of_date) as max_date from metals_curve_history`
-      );
+    // Upsert latest from that most recent date
+    await client.query(
+      `
+      INSERT INTO metals_curve_latest (
+        as_of_date,
+        metal,
+        tenor_months,
+        price,
+        real_10yr_yld,
+        dollar_index,
+        deficit_gdp_flag,
+        updated_at
+      )
+      SELECT
+        as_of_date,
+        metal,
+        tenor_months,
+        price,
+        real_10yr_yld,
+        dollar_index,
+        deficit_gdp_flag,
+        NOW()
+      FROM metals_curve_history
+      WHERE as_of_date = $1
+      ON CONFLICT (metal, tenor_months)
+      DO UPDATE SET
+        as_of_date        = EXCLUDED.as_of_date,
+        price             = EXCLUDED.price,
+        real_10yr_yld     = EXCLUDED.real_10yr_yld,
+        dollar_index      = EXCLUDED.dollar_index,
+        deficit_gdp_flag  = EXCLUDED.deficit_gdp_flag,
+        updated_at        = NOW()
+      `,
+      [asOfDate]
+    );
 
-      // Recent counts by date+metal (history)
-      const counts = await client.query(`
-        select as_of_date, metal, count(*)::int as rows
-        from metals_curve_history
-        group by as_of_date, metal
-        order by as_of_date desc, metal
-        limit 60
-      `);
-
-      return jsonResponse({
-        ok: true,
-        latest_max_date: latestMax.rows[0]?.max_date || null,
-        history_max_date: histMax.rows[0]?.max_date || null,
-        history_counts_recent: counts.rows,
-      });
-    } finally {
-      client.release();
-    }
-  } catch (e) {
-    return jsonResponse({ ok: false, error: String(e?.message || e) }, 500);
+    return NextResponse.json({ ok: true, asOfDate });
+  } catch (err) {
+    return NextResponse.json(
+      { ok: false, error: String(err) },
+      { status: 500 }
+    );
+  } finally {
+    client.release();
   }
 }
