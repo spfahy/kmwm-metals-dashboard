@@ -82,7 +82,17 @@ export async function GET() {
 
     // Use first row for metadata
     const first = rows[0];
-    const asOfDate = clean(pick(first, ["As Of Date", "as_of_date", "asOfDate", "date"])) || "";
+    const rawDate = clean(
+  pick(first, ["As Of Date", "as_of_date", "asOfDate", "date"])
+);
+
+const parsedDate = rawDate ? new Date(rawDate) : null;
+
+const asOfDate =
+  parsedDate && !isNaN(parsedDate)
+    ? parsedDate.toISOString().slice(0, 10)
+    : "";
+
     const realYield = toNum(pick(first, ["10 Yr Real Yld", "realYield", "real_10yr_yld"]));
     const dollarIndex = toNum(pick(first, ["Dollar Index", "dollarIndex"]));
     const deficitFlagRaw = clean(pick(first, ["Deficit GDP Flag", "deficitFlag", "deficit_gdp_flag"]));
