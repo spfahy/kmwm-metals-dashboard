@@ -1,67 +1,42 @@
+// app/api/metals/route.js
+
 import { NextResponse } from "next/server";
 import { Client } from "pg";
 
-function clean(x) {
-  return String(x ?? "").trim().replace(/^"|"$/g, "");
-}
-
 function toNum(x) {
-  const s = clean(x);
+  const s = String(x ?? "").trim().replace(/^"|"$/g, "");
   if (s === "") return null;
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
 }
 
 function normKey(k) {
-  return clean(k).toLowerCase().replace(/[\s_]+/g, "");
+  return String(k ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, ""); // remove spaces/underscores
 }
 
-function parseCsv(text) {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim().length);
-  if (lines.length < 2) return { headers: [], rows: [] };
-
-  const rawHeaders = lines[0].split(",").map(clean);
-  const headers = rawHeaders.map(normKey);
-
-  const rows = lines.slice(1).map((line) => {
-    const cols = line.split(",").map(clean);
-    const obj = {};
-    headers.forEach((h, i) => (obj[h] = cols[i] ?? ""));
-    return obj;
-  });
-
-  return { headers, rows };
-}
-
-function pick(obj, keys) {
+function getByNorm(obj, keys) {
   for (const k of keys) {
-    const nk = normKey(k);
-    if (obj[nk] != null && clean(obj[nk]) !== "") return obj[nk];
+    const v = obj[k];
+    if (v != null && String(v).trim() !== "") return v;
   }
   return null;
 }
 
-// CSV expected (your Metals tab):
-// As Of Date, Metal, Tenor Months, Price, 10 Yr Real Yld, Dollar Index, Deficit GDP Flag
 export async function GET() {
+  let client;
   try {
+    // --- 1) Fetch CSV ---
     const csvUrl = process.env.METALS_CSV_URL;
-    const dbUrl = process.env.DATABASE_URL;
-
     if (!csvUrl) {
       return NextResponse.json(
         { error: "Missing env var METALS_CSV_URL" },
         { status: 500 }
       );
     }
-    if (!dbUrl) {
-      return NextResponse.json(
-        { error: "Missing env var DATABASE_URL" },
-        { status: 500 }
-      );
-    }
 
-    // 1) Load TODAY from CSV
     const res = await fetch(csvUrl, { cache: "no-store" });
     const text = await res.text();
 
@@ -72,52 +47,61 @@ export async function GET() {
       );
     }
 
-    const { rows } = parseCsv(text);
-    if (!rows.length) {
+    const lines = text.split(/\r?\n/).filter((l) => l.trim().length);
+    if (lines.length < 2) {
       return NextResponse.json(
         { error: "CSV empty or missing rows" },
         { status: 500 }
       );
     }
 
-    // Use first row for metadata
-    const first = rows[0];
-    const rawDate = clean(
-  pick(first, ["As Of Date", "as_of_date", "asOfDate", "date"])
-);
+    // --- 2) Parse headers + rows (supports your sheet headers) ---
+    const rawHeaders = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
+    const headers = rawHeaders.map(normKey);
 
-const parsedDate = rawDate ? new Date(rawDate) : null;
+    const rows = lines.slice(1).map((line) => {
+      const cols = line.split(",").map((c) => String(c ?? "").replace(/^"|"$/g, ""));
+      const obj = {};
+      headers.forEach((h, i) => (obj[h] = cols[i]));
+      return obj;
+    });
 
-const asOfDate =
-  parsedDate && !isNaN(parsedDate)
-    ? parsedDate.toISOString().slice(0, 10)
-    : "";
-
-    const realYield = toNum(pick(first, ["10 Yr Real Yld", "realYield", "real_10yr_yld"]));
-    const dollarIndex = toNum(pick(first, ["Dollar Index", "dollarIndex"]));
-    const deficitFlagRaw = clean(pick(first, ["Deficit GDP Flag", "deficitFlag", "deficit_gdp_flag"]));
-    const deficitFlag =
-      deficitFlagRaw === "true" || deficitFlagRaw === "TRUE" || deficitFlagRaw === "1";
-
-    if (!asOfDate) {
+    // Required headers (normalized):
+    // As Of Date -> asofdate
+    // Metal -> metal
+    // Tenor Months -> tenormonths
+    // Price -> price
+    const need = ["asofdate", "metal", "tenormonths", "price"];
+    const missing = need.filter((k) => !headers.includes(k));
+    if (missing.length) {
       return NextResponse.json(
-        { error: "Missing As Of Date in CSV (Metals tab)" },
+        {
+          error: "CSV headers not recognized",
+          need: ["As Of Date", "Metal", "Tenor Months", "Price"],
+          got: rawHeaders,
+        },
         { status: 500 }
       );
     }
 
-    // Build TODAY maps by (metal, tenor)
-    const todayMap = new Map(); // key = metal|tenor -> price
+    // --- 3) Pull today (from CSV) ---
+    const first = rows[0] || {};
+    const asOfDate = String(getByNorm(first, ["asofdate"]) ?? "").slice(0, 10); // "YYYY-MM-DD"
+
+    const realYield = toNum(getByNorm(first, ["10yrrealyld", "10yrrealyield", "realyield"]));
+    const dollarIndex = toNum(getByNorm(first, ["dollarindex"]));
+    const deficitFlagRaw = getByNorm(first, ["deficitgdpflag"]);
+    const deficitFlag = String(deficitFlagRaw ?? "").trim() === "1" ? true : false;
+
+    const todayMap = new Map();
     const tenorsSet = new Set();
 
     for (const r of rows) {
-      const metal = clean(pick(r, ["Metal", "metal"]))?.toUpperCase();
-      const tenorMonths = toNum(pick(r, ["Tenor Months", "tenorMonths", "tenor_months", "tenor"]));
-      const price = toNum(pick(r, ["Price", "price"]));
-      const rowDate = clean(pick(r, ["As Of Date", "as_of_date", "asOfDate", "date"])) || asOfDate;
+      const metal = String(getByNorm(r, ["metal"]) ?? "").trim().toUpperCase();
+      const tenorMonths = toNum(getByNorm(r, ["tenormonths"]));
+      const price = toNum(getByNorm(r, ["price"]));
 
       if (!metal || tenorMonths == null || price == null) continue;
-      if (rowDate !== asOfDate) continue;
 
       tenorsSet.add(tenorMonths);
       todayMap.set(`${metal}|${tenorMonths}`, price);
@@ -125,52 +109,55 @@ const asOfDate =
 
     const tenors = Array.from(tenorsSet).sort((a, b) => a - b);
 
-    // 2) Pull PRIOR from DB (latest date < asOfDate) + prices for that date
-    const client = new Client({ connectionString: dbUrl });
+    // --- 4) Pull PRIOR from database (latest date < asOfDate) ---
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) {
+      return NextResponse.json(
+        { error: "Missing env var DATABASE_URL" },
+        { status: 500 }
+      );
+    }
+
+    client = new Client({ connectionString: dbUrl });
     await client.connect();
 
-  
+    const priorDateRes = await client.query(
+      `
+      SELECT MAX(as_of_date) AS prior_date
+      FROM metals_curve_history
+      WHERE as_of_date < $1::date
+      `,
+      [asOfDate]
+    );
 
-    
-    // Prior date comes from database: asOfDate - 1 day
+    const priorDateVal = priorDateRes.rows?.[0]?.prior_date;
+    const priorDate = priorDateVal ? String(priorDateVal).slice(0, 10) : "";
 
+    const priorMap = new Map();
 
-const priorRowsRes = await client.query(
-  `
-  SELECT as_of_date, metal, tenor_months, price
-  FROM metals_curve_history
-  WHERE as_of_date = (
-    SELECT MAX(as_of_date)
-    FROM metals_curve_history
-    WHERE as_of_date < $1::date
-  )
-  `,
-  [asOfDate]
-);
+    if (priorDate) {
+      const priorRowsRes = await client.query(
+        `
+        SELECT metal, tenor_months, price
+        FROM metals_curve_history
+        WHERE as_of_date = $1::date
+        `,
+        [priorDate]
+      );
 
-const priorDate =
-  priorRowsRes.rows?.length ? String(priorRowsRes.rows[0].as_of_date).slice(0, 10) : "";
-
-
-const priorDate =
-  priorRowsRes.rows?.length
-    ? String(priorRowsRes.rows[0].as_of_date).slice(0, 10)
-    : "";
-
-
-const priorMap = new Map();
-for (const pr of priorRowsRes.rows || []) {
-  const metal = String(pr.metal || "").toUpperCase();
-  const tenorMonths = Number(pr.tenor_months);
-  const price = Number(pr.price);
-  if (!metal || !Number.isFinite(tenorMonths) || !Number.isFinite(price)) continue;
-  priorMap.set(`${metal}|${tenorMonths}`, price);
-}
-
+      for (const pr of priorRowsRes.rows || []) {
+        const metal = String(pr.metal ?? "").trim().toUpperCase();
+        const tenorMonths = Number(pr.tenor_months);
+        const price = Number(pr.price);
+        if (!metal || !Number.isFinite(tenorMonths) || !Number.isFinite(price)) continue;
+        priorMap.set(`${metal}|${tenorMonths}`, price);
+      }
+    }
 
     await client.end();
+    client = null;
 
-    // 3) Build curves output
+    // --- 5) Build curves output ---
     const curves = tenors.map((t) => ({
       tenorMonths: t,
       goldToday: todayMap.get(`GOLD|${t}`) ?? null,
@@ -188,6 +175,9 @@ for (const pr of priorRowsRes.rows || []) {
       curves,
     });
   } catch (e) {
+    try {
+      if (client) await client.end();
+    } catch {}
     return NextResponse.json(
       { error: String(e?.message || e) },
       { status: 500 }
