@@ -64,7 +64,7 @@ function makeDomain(data, keys, padPct = 0.04) {
   let min = Infinity;
   let max = -Infinity;
 
-  for (const row of data || []) {
+  for (const row of (data || [])) {
     for (const k of keys) {
       const v = row?.[k];
       if (v == null) continue;
@@ -74,6 +74,19 @@ function makeDomain(data, keys, padPct = 0.04) {
       if (n > max) max = n;
     }
   }
+
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return ["auto", "auto"];
+
+  if (min === max) {
+    const bump = min === 0 ? 1 : Math.abs(min) * 0.02;
+    return [min - bump, max + bump];
+  }
+
+  const range = max - min;
+  const pad = range * padPct;
+  return [min - pad, max + pad];
+}
+
 
   if (!Number.isFinite(min) || !Number.isFinite(max)) return ["auto", "auto"];
   if (min === max) {
