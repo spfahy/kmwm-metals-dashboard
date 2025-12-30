@@ -112,6 +112,13 @@ export default function MetalsPage() {
 
       <h1>Gold & Silver — Term Structure</h1>
 
+<div style={{ fontSize: 13, opacity: 0.85, marginBottom: 12 }}>
+  As of: <strong>{(Array.isArray(data) ? data?.[0]?.asOfDate : data?.asOfDate) ?? "--"}</strong>
+  {"   "}
+  Prior: <strong>{(Array.isArray(data) ? data?.[0]?.priorDate : data?.priorDate) ?? "--"}</strong>
+</div>
+
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
         <div>
           <strong>Gold Spot</strong>
