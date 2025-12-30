@@ -53,10 +53,9 @@ function fmtPct(v) {
 }
 
 function badgeTone(v) {
-  // spreads: negative = backwardation; positive = contango
   if (v == null) return { background: "#f3f4f6", color: "#111827", border: "1px solid #e5e7eb" };
-  if (v < 0) return { background: "#dcfce7", color: "#166534", border: "1px solid #86efac" };
-  if (v > 0) return { background: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca" };
+  if (v < 0) return { background: "#dcfce7", color: "#166534", border: "1px solid #86efac" }; // backwardation
+  if (v > 0) return { background: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca" }; // contango
   return { background: "#f3f4f6", color: "#111827", border: "1px solid #e5e7eb" };
 }
 
@@ -106,7 +105,10 @@ export default function MetalsPage() {
   const asOfDate = (Array.isArray(data) ? data?.[0]?.asOfDate : data?.asOfDate) ?? "--";
   const priorDate = (Array.isArray(data) ? data?.[0]?.priorDate : data?.priorDate) ?? "--";
 
-  // Spot rows
+  // Only show the tenors you actually track
+  const trackedTenors = new Set([0, 1, 2, 3, 4, 5, 12]);
+  const trackedRows = rows.filter((r) => trackedTenors.has(r.tenorMonths));
+
   const spot =
     rows.find((r) => r.tenorMonths === 0) ||
     rows.find((r) => r.tenorMonths === 1) ||
@@ -116,34 +118,31 @@ export default function MetalsPage() {
   const goldSpot = spot?.goldToday ?? null;
   const silverSpot = spot?.silverToday ?? null;
 
-  // Spreads (12m - 0m)
   const row12 = rows.find((r) => r.tenorMonths === 12) || null;
 
   const goldSpread12m = goldSpot != null && row12?.goldToday != null ? row12.goldToday - goldSpot : null;
   const silverSpread12m = silverSpot != null && row12?.silverToday != null ? row12.silverToday - silverSpot : null;
 
-  // Correlation across the curve (today)
   const gsCorr = corr(
     rows.map((r) => r.goldToday),
     rows.map((r) => r.silverToday)
   );
 
-  // Percent vs spot (shape view)
   const pctRows = useMemo(() => {
     const g0 = goldSpot;
     const s0 = silverSpot;
+    const g0p = spot?.goldPrior ?? null;
+    const s0p = spot?.silverPrior ?? null;
+
     return rows.map((r) => ({
       tenorMonths: r.tenorMonths,
       goldPct: g0 != null && r.goldToday != null ? r.goldToday / g0 - 1 : null,
       silverPct: s0 != null && r.silverToday != null ? r.silverToday / s0 - 1 : null,
-      goldPctPrior:
-        g0 != null && r.goldPrior != null && spot?.goldPrior != null ? r.goldPrior / spot.goldPrior - 1 : null,
-      silverPctPrior:
-        s0 != null && r.silverPrior != null && spot?.silverPrior != null ? r.silverPrior / spot.silverPrior - 1 : null,
+      goldPctPrior: g0p != null && r.goldPrior != null ? r.goldPrior / g0p - 1 : null,
+      silverPctPrior: s0p != null && r.silverPrior != null ? r.silverPrior / s0p - 1 : null,
     }));
   }, [rows, goldSpot, silverSpot, spot]);
 
-  // Gold-to-silver ratio by tenor (difference view)
   const ratioRows = useMemo(() => {
     return rows
       .map((r) => {
@@ -160,22 +159,17 @@ export default function MetalsPage() {
       .filter(Boolean);
   }, [rows]);
 
-  // Simple front/back slope flags (uses 0, 1, 3, 12 if present)
-  const r1 = rows.find((r) => r.tenorMonths === 1) || null;
-  const r3 = rows.find((r) => r.tenorMonths === 3) || null;
-
-  const goldFront = goldSpot != null && r1?.goldToday != null ? r1.goldToday - goldSpot : null;
-  const goldMid = goldSpot != null && r3?.goldToday != null ? r3.goldToday - goldSpot : null;
-  const goldBack = goldSpot != null && row12?.goldToday != null ? row12.goldToday - goldSpot : null;
-
-  const silverFront = silverSpot != null && r1?.silverToday != null ? r1.silverToday - silverSpot : null;
-  const silverMid = silverSpot != null && r3?.silverToday != null ? r3.silverToday - silverSpot : null;
-  const silverBack = silverSpot != null && row12?.silverToday != null ? row12.silverToday - silverSpot : null;
-
   return (
-    <main style={{ padding: 24, fontFamily: "system-ui, Arial" }}>
+    <main style={{ padding: 20, fontFamily: "system-ui, Arial", background: "#f6f7f9", minHeight: "100vh" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 900 }}>Gold & Silver — Term Structure</h1>
+        <div style={{ fontSize: 13, opacity: 0.85, textAlign: "right" }}>
+          As of: <strong>{asOfDate}</strong> &nbsp; | &nbsp; Prior: <strong>{priorDate}</strong>
+        </div>
+      </div>
+
       {loading && (
-        <div style={{ marginTop: 10, padding: 10, border: "1px solid #ddd", borderRadius: 10 }}>
+        <div style={{ marginTop: 10, padding: 10, border: "1px solid #ddd", borderRadius: 12, background: "white" }}>
           Loading…
         </div>
       )}
@@ -186,7 +180,7 @@ export default function MetalsPage() {
             marginTop: 10,
             padding: 10,
             border: "1px solid #f5c2c7",
-            borderRadius: 10,
+            borderRadius: 12,
             background: "#f8d7da",
             color: "#842029",
             fontSize: 13,
@@ -198,74 +192,62 @@ export default function MetalsPage() {
         </div>
       )}
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
-        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 900 }}>Gold & Silver — Term Structure</h1>
-
-        <div style={{ fontSize: 13, opacity: 0.85, textAlign: "right" }}>
-          As of: <strong>{asOfDate}</strong> &nbsp; | &nbsp; Prior: <strong>{priorDate}</strong>
+      {/* Compact top row */}
+      <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+        <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 14, background: "white" }}>
+          <div style={{ fontWeight: 900, marginBottom: 6 }}>Gold</div>
+          <div style={{ fontSize: 14 }}>Spot: <strong>{fmt2(goldSpot)}</strong></div>
+          <div style={{ marginTop: 8 }}>
+            <span style={{ display: "inline-block", padding: "4px 10px", borderRadius: 999, fontSize: 12, ...badgeTone(goldSpread12m) }}>
+              12m − 0m: {fmt2(goldSpread12m)}
+            </span>
+          </div>
         </div>
-      </div>
 
-      {/* Top summary cards */}
-      <div style={{ marginTop: 14 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-          <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 12, background: "white" }}>
-            <div style={{ fontWeight: 900, marginBottom: 6 }}>Gold</div>
-            <div>Spot: {goldSpot != null ? fmt2(goldSpot) : "--"}</div>
-            <div style={{ marginTop: 8 }}>
-              <span
-                style={{
-                  display: "inline-block",
-                  padding: "4px 10px",
-                  borderRadius: 999,
-                  fontSize: 12,
-                  ...badgeTone(goldSpread12m),
-                }}
-              >
-                12m − 0m: {fmt2(goldSpread12m)}
-              </span>
-            </div>
-            <div style={{ marginTop: 10, fontSize: 12, opacity: 0.85 }}>
-              1m−0m: {fmt2(goldFront)} &nbsp; | &nbsp; 3m−0m: {fmt2(goldMid)}
-            </div>
+        <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 14, background: "white" }}>
+          <div style={{ fontWeight: 900, marginBottom: 6 }}>Silver</div>
+          <div style={{ fontSize: 14 }}>Spot: <strong>{fmt2(silverSpot)}</strong></div>
+          <div style={{ marginTop: 8 }}>
+            <span style={{ display: "inline-block", padding: "4px 10px", borderRadius: 999, fontSize: 12, ...badgeTone(silverSpread12m) }}>
+              12m − 0m: {fmt2(silverSpread12m)}
+            </span>
           </div>
+        </div>
 
-          <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 12, background: "white" }}>
-            <div style={{ fontWeight: 900, marginBottom: 6 }}>Silver</div>
-            <div>Spot: {silverSpot != null ? fmt2(silverSpot) : "--"}</div>
-            <div style={{ marginTop: 8 }}>
-              <span
-                style={{
-                  display: "inline-block",
-                  padding: "4px 10px",
-                  borderRadius: 999,
-                  fontSize: 12,
-                  ...badgeTone(silverSpread12m),
-                }}
-              >
-                12m − 0m: {fmt2(silverSpread12m)}
-              </span>
-            </div>
-            <div style={{ marginTop: 10, fontSize: 12, opacity: 0.85 }}>
-              1m−0m: {fmt2(silverFront)} &nbsp; | &nbsp; 3m−0m: {fmt2(silverMid)}
-            </div>
-          </div>
-
-          <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 12, background: "white" }}>
-            <div style={{ fontWeight: 900, marginBottom: 6 }}>Gold vs Silver</div>
-            <div>Curve Correlation (Today): {gsCorr != null ? gsCorr.toFixed(2) : "--"}</div>
-            <div style={{ marginTop: 10, fontSize: 12, opacity: 0.85 }}>
-              Backwardation = negative spread. Contango = positive spread.
-            </div>
+        <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 14, background: "white" }}>
+          <div style={{ fontWeight: 900, marginBottom: 6 }}>Gold vs Silver</div>
+          <div style={{ fontSize: 14 }}>Curve Correlation: <strong>{gsCorr != null ? gsCorr.toFixed(2) : "--"}</strong></div>
+          <div style={{ fontSize: 12, opacity: 0.8, marginTop: 6 }}>
+            Negative spread = backwardation. Positive = contango.
           </div>
         </div>
       </div>
 
-      {/* Curve charts */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 18, marginTop: 18 }}>
-        <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 12, background: "white" }}>
-          <h2 style={{ margin: "0 0 10px 0", fontSize: 18 }}>Absolute Prices (Today vs Prior)</h2>
-          <div style={{ height: 320 }}>
+      {/* HERO: % vs Spot */}
+      <div style={{ marginTop: 12, padding: 12, border: "1px solid #ddd", borderRadius: 14, background: "white" }}>
+        <h2 style={{ margin: "0 0 10px 0", fontSize: 16 }}>Curve Shape (% vs Spot)</h2>
+        <div style={{ height: 320 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={pctRows}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="tenorMonths" />
+              <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} />
+              <Tooltip formatter={(v) => fmtPct(v)} />
+              <Legend />
+              <Line name="Gold % Today" type="monotone" dataKey="goldPct" dot={false} />
+              <Line name="Silver % Today" type="monotone" dataKey="silverPct" dot={false} />
+              <Line name="Gold % Prior" type="monotone" dataKey="goldPctPrior" dot={false} />
+              <Line name="Silver % Prior" type="monotone" dataKey="silverPctPrior" dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Absolute charts split (readable) */}
+      <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 14, background: "white" }}>
+          <h2 style={{ margin: "0 0 10px 0", fontSize: 16 }}>Gold (Absolute)</h2>
+          <div style={{ height: 260 }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={rows}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -275,81 +257,75 @@ export default function MetalsPage() {
                 <Legend />
                 <Line name="Gold Today" type="monotone" dataKey="goldToday" dot={false} />
                 <Line name="Gold Prior" type="monotone" dataKey="goldPrior" dot={false} />
-                <Line name="Silver Today" type="monotone" dataKey="silverToday" dot={false} />
-                <Line name="Silver Prior" type="monotone" dataKey="silverPrior" dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-          <div style={{ fontSize: 12, opacity: 0.8, marginTop: 8 }}>
-            This view is dominated by gold’s price level. Use the next chart to compare *shape*.
-          </div>
-        </div>
-
-        <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 12, background: "white" }}>
-          <h2 style={{ margin: "0 0 10px 0", fontSize: 18 }}>Curve Shape (% vs Spot)</h2>
-          <div style={{ height: 300 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={pctRows}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="tenorMonths" />
-                <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} />
-                <Tooltip formatter={(v) => fmtPct(v)} />
-                <Legend />
-                <Line name="Gold % Today" type="monotone" dataKey="goldPct" dot={false} />
-                <Line name="Silver % Today" type="monotone" dataKey="silverPct" dot={false} />
-                <Line name="Gold % Prior" type="monotone" dataKey="goldPctPrior" dot={false} />
-                <Line name="Silver % Prior" type="monotone" dataKey="silverPctPrior" dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 12, background: "white" }}>
-          <h2 style={{ margin: "0 0 10px 0", fontSize: 18 }}>Gold-to-Silver Ratio by Tenor</h2>
+        <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 14, background: "white" }}>
+          <h2 style={{ margin: "0 0 10px 0", fontSize: 16 }}>Silver (Absolute)</h2>
           <div style={{ height: 260 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={ratioRows}>
+              <LineChart data={rows}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="tenorMonths" />
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Line name="Ratio Today" type="monotone" dataKey="ratioToday" dot={false} />
-                <Line name="Ratio Prior" type="monotone" dataKey="ratioPrior" dot={false} />
+                <Line name="Silver Today" type="monotone" dataKey="silverToday" dot={false} />
+                <Line name="Silver Prior" type="monotone" dataKey="silverPrior" dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
       </div>
 
-      {/* Table */}
-      <div style={{ marginTop: 18, padding: 12, border: "1px solid #ddd", borderRadius: 12, background: "white" }}>
-        <h2 style={{ margin: "0 0 12px 0", fontSize: 18 }}>Term Structure Table</h2>
+      {/* Ratio */}
+      <div style={{ marginTop: 12, padding: 12, border: "1px solid #ddd", borderRadius: 14, background: "white" }}>
+        <h2 style={{ margin: "0 0 10px 0", fontSize: 16 }}>Gold-to-Silver Ratio by Tenor</h2>
+        <div style={{ height: 240 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={ratioRows}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="tenorMonths" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Line name="Ratio Today" type="monotone" dataKey="ratioToday" dot={false} />
+              <Line name="Ratio Prior" type="monotone" dataKey="ratioPrior" dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Clean table (tracked tenors only) */}
+      <div style={{ marginTop: 12, padding: 12, border: "1px solid #ddd", borderRadius: 14, background: "white" }}>
+        <h2 style={{ margin: "0 0 10px 0", fontSize: 16 }}>Tracked Tenors (0, 1, 2, 3, 4, 5, 12)</h2>
 
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr>
-              <th style={{ textAlign: "left", padding: "6px 4px" }}>Tenor</th>
-              <th style={{ textAlign: "right", padding: "6px 4px" }}>Gold Today</th>
-              <th style={{ textAlign: "right", padding: "6px 4px", opacity: 0.7 }}>Gold Prior</th>
-              <th style={{ textAlign: "right", padding: "6px 4px" }}>Silver Today</th>
-              <th style={{ textAlign: "right", padding: "6px 4px", opacity: 0.7 }}>Silver Prior</th>
+              <th style={{ textAlign: "left", padding: "6px 6px" }}>Tenor</th>
+              <th style={{ textAlign: "right", padding: "6px 6px" }}>Gold Today</th>
+              <th style={{ textAlign: "right", padding: "6px 6px", opacity: 0.7 }}>Gold Prior</th>
+              <th style={{ textAlign: "right", padding: "6px 6px" }}>Silver Today</th>
+              <th style={{ textAlign: "right", padding: "6px 6px", opacity: 0.7 }}>Silver Prior</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((r, i) => (
-              <tr key={i} style={{ background: r.tenorMonths <= 3 ? "#f9fafb" : "transparent" }}>
-                <td style={{ padding: "6px 4px" }}>{r.tenorMonths}m</td>
-                <td style={{ padding: "6px 4px", textAlign: "right" }}>{fmt2(r.goldToday)}</td>
-                <td style={{ padding: "6px 4px", textAlign: "right", opacity: 0.7 }}>{fmt2(r.goldPrior)}</td>
-                <td style={{ padding: "6px 4px", textAlign: "right" }}>{fmt2(r.silverToday)}</td>
-                <td style={{ padding: "6px 4px", textAlign: "right", opacity: 0.7 }}>{fmt2(r.silverPrior)}</td>
+            {trackedRows.map((r, i) => (
+              <tr key={i} style={{ borderTop: "1px solid #eee" }}>
+                <td style={{ padding: "6px 6px" }}>{r.tenorMonths}m</td>
+                <td style={{ padding: "6px 6px", textAlign: "right" }}>{fmt2(r.goldToday)}</td>
+                <td style={{ padding: "6px 6px", textAlign: "right", opacity: 0.7 }}>{fmt2(r.goldPrior)}</td>
+                <td style={{ padding: "6px 6px", textAlign: "right" }}>{fmt2(r.silverToday)}</td>
+                <td style={{ padding: "6px 6px", textAlign: "right", opacity: 0.7 }}>{fmt2(r.silverPrior)}</td>
               </tr>
             ))}
           </tbody>
         </table>
 
-        <div style={{ marginTop: 12 }}>
+        <div style={{ marginTop: 10 }}>
           <button
             onClick={() => setShowRaw((v) => !v)}
             style={{
