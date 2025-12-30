@@ -169,28 +169,35 @@ export default function MetalsPage() {
     }));
   }, [rows, goldSpot, silverSpot, spot]);
 
-  const ratioToday = Number(r.goldToday) / Number(r.silverToday);
+  const ratioRows = useMemo(() => {
+  return rows
+    .map((r) => {
+      if (r.goldToday == null || r.silverToday == null) return null;
 
-let ratioPrior = null;
-if (r.goldPrior != null && r.silverPrior != null) {
-  const sp = Number(r.silverPrior);
-  const gp = Number(r.goldPrior);
-  if (Number.isFinite(sp) && sp !== 0 && Number.isFinite(gp)) {
-    ratioPrior = gp / sp;
-  }
-}
+      const g = Number(r.goldToday);
+      const s = Number(r.silverToday);
+      if (!Number.isFinite(g) || !Number.isFinite(s) || s === 0) return null;
 
+      const ratioToday = g / s;
 
+      let ratioPrior = null;
+      if (r.goldPrior != null && r.silverPrior != null) {
+        const gp = Number(r.goldPrior);
+        const sp = Number(r.silverPrior);
+        if (Number.isFinite(gp) && Number.isFinite(sp) && sp !== 0) {
+          ratioPrior = gp / sp;
+        }
+      }
 
-        return {
-  tenorMonths: Number(r.tenorMonths),
-  ratioToday: Number.isFinite(ratioToday) ? ratioToday : null,
-  ratioPrior: Number.isFinite(ratioPrior) ? ratioPrior : null,
-};
+      return {
+        tenorMonths: Number(r.tenorMonths),
+        ratioToday,
+        ratioPrior,
+      };
+    })
+    .filter(Boolean);
+}, [rows]);
 
-      })
-      .filter(Boolean);
-  }, [rows]);
 
   // Dynamic y-axis domains
   const goldAbsDomain = useMemo(() => makeDomain(rows, ["goldToday", "goldPrior"], 0.03), [rows]);
