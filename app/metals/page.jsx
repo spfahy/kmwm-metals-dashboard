@@ -345,8 +345,8 @@ const ratioDomainLive = useMemo(() => makeDomain(ratioRows, ["ratioToday", "rati
               <LineChart data={ratioRows} margin={{ top: 10, right: 20, left: 48, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="tenorMonths" />
-                <YAxis domain={ratioDomain} />
-                <Tooltip />
+                348 | <YAxis type="number" domain={[45, 85]} tickCount={9} tickFormatter={(v) => v.toFixed(0)} />
+                349 | <Tooltip formatter={(v) => (v == null ? "--" : Number(v).toFixed(2))} />
                 <Legend />
                 <Line name="Ratio Today" type="monotone" dataKey="ratioToday" dot={false} stroke="#111827" strokeWidth={2.5} />
                 <Line name="Ratio Prior" type="monotone" dataKey="ratioPrior" dot={false} stroke="#9ca3af" strokeWidth={2} strokeDasharray="6 4" />
