@@ -12,8 +12,52 @@ import {
   Legend,
 } from "recharts";
 
+type CurveRow = {
+  tenorMonths: number;
+  goldToday: number | null;
+  goldPrior: number | null;
+  silverToday: number | null;
+  silverPrior: number | null;
+};
+
+function toNumOrNull(v: any): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function corr(xs: Array<number | null>, ys: Array<number | null>): number | null {
+  const pts: Array<[number, number]> = [];
+  for (let i = 0; i < xs.length; i++) {
+    const x = xs[i];
+    const y = ys[i];
+    if (x == null || y == null) continue;
+    pts.push([x, y]);
+  }
+  if (pts.length < 3) return null;
+
+  const meanX = pts.reduce((s, p) => s + p[0], 0) / pts.length;
+  const meanY = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+
+  let num = 0;
+  let denX = 0;
+  let denY = 0;
+
+  for (const [x, y] of pts) {
+    const dx = x - meanX;
+    const dy = y - meanY;
+    num += dx * dy;
+    denX += dx * dx;
+    denY += dy * dy;
+  }
+
+  const den = Math.sqrt(denX) * Math.sqrt(denY);
+  if (!Number.isFinite(den) || den === 0) return null;
+  return num / den;
+}
+
 export default function MetalsPage() {
-  const [data, setData] = useState(null);
+  const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [rawText, setRawText] = useState("");
@@ -43,7 +87,7 @@ export default function MetalsPage() {
         if (alive) setError(String(e?.message || e));
       })
       .finally(() => {
-        if (alive) setLoading(false);
+        if (alive) setLoading(false));
       });
 
     return () => {
@@ -51,43 +95,95 @@ export default function MetalsPage() {
     };
   }, []);
 
-  const curves = data?.curves ?? [];
+  // Accept either:
+  // 1) { curves: [...] }
+  // 2) [...] (array response)
+  const curvesRaw = useMemo(() => {
+    if (Array.isArray(data)) return data;
+    return data?.curves ?? [];
+  }, [data]);
 
-  const rows = useMemo(() => {
-    return (curves || [])
-      .filter((r) => Number.isFinite(Number(r.tenorMonths)) && Number(r.tenorMonths) >= 0)
-      .map((r) => ({
-        tenorMonths: Number(r.tenorMonths),
-        goldToday: r.goldToday == null ? null : Number(r.goldToday),
-        goldPrior: r.goldPrior == null ? null : Number(r.goldPrior),
-        silverToday: r.silverToday == null ? null : Number(r.silverToday),
-        silverPrior: r.silverPrior == null ? null : Number(r.silverPrior),
-      }))
-      .sort((a, b) => a.tenorMonths - b.tenorMonths);
-  }, [curves]);
+  const rows: CurveRow[] = useMemo(() => {
+    return (curvesRaw || [])
+      .map((r: any) => {
+        const tenor = toNumOrNull(r.tenorMonths ?? r.tenor_months ?? r.tenor ?? r.months);
+        if (tenor == null) return null;
 
-    // Spot: use tenorMonths === 0 (sheet-defined spot). Fallback to 1 if 0 is missing.
-const spotRow =
-  rows.find((r) => r.tenorMonths === 0) ||
-  rows.find((r) => r.tenorMonths === 1) ||
-  rows.find((r) => r.goldToday != null || r.silverToday != null) ||
-  null;
+        return {
+          tenorMonths: tenor,
+          goldToday: toNumOrNull(r.goldToday ?? r.gold_today ?? r.gold),
+          goldPrior: toNumOrNull(r.goldPrior ?? r.gold_prior),
+          silverToday: toNumOrNull(r.silverToday ?? r.silver_today ?? r.silver),
+          silverPrior: toNumOrNull(r.silverPrior ?? r.silver_prior),
+        } as CurveRow;
+      })
+      .filter(Boolean)
+      .sort((a: any, b: any) => a.tenorMonths - b.tenorMonths) as CurveRow[];
+  }, [curvesRaw]);
 
+  // Spot: tenorMonths === 0 preferred, then 1, then first row with anything usable
+  const spotRow =
+    rows.find((r) => r.tenorMonths === 0) ||
+    rows.find((r) => r.tenorMonths === 1) ||
+    rows.find((r) => r.goldToday != null || r.silverToday != null) ||
+    null;
 
   const goldSpot = spotRow?.goldToday ?? null;
   const goldDelta =
     spotRow?.goldToday != null && spotRow?.goldPrior != null
-      ? Number(spotRow.goldToday) - Number(spotRow.goldPrior)
+      ? spotRow.goldToday - spotRow.goldPrior
       : null;
 
   const silverSpot = spotRow?.silverToday ?? null;
   const silverDelta =
     spotRow?.silverToday != null && spotRow?.silverPrior != null
-      ? Number(spotRow.silverToday) - Number(spotRow.silverPrior)
+      ? spotRow.silverToday - spotRow.silverPrior
       : null;
 
-  const headerAsOf = data?.asOfDate ?? "--";
-  const headerPrior = data?.priorDate ?? "";
+  // Backwardation quick check: 12m - 0m (negative = backwardation)
+  const row0 = rows.find((r) => r.tenorMonths === 0) || null;
+  const row12 = rows.find((r) => r.tenorMonths === 12) || null;
+
+  const goldSpread12m =
+    row0?.goldToday != null && row12?.goldToday != null ? row12.goldToday - row0.goldToday : null;
+  const silverSpread12m =
+    row0?.silverToday != null && row12?.silverToday != null
+      ? row12.silverToday - row0.silverToday
+      : null;
+
+  // Gold vs Silver curve correlation (today), across tenors
+  const goldSeries = rows.map((r) => r.goldToday);
+  const silverSeries = rows.map((r) => r.silverToday);
+  const gsCorr = corr(goldSeries, silverSeries);
+
+  // Gold-to-Silver ratio by tenor (today), useful for “differences”
+  const ratioRows = useMemo(() => {
+    return rows
+      .map((r) => {
+        if (r.goldToday == null || r.silverToday == null) return null;
+        if (r.silverToday === 0) return null;
+        return {
+          tenorMonths: r.tenorMonths,
+          ratioToday: r.goldToday / r.silverToday,
+          ratioPrior:
+            r.goldPrior != null && r.silverPrior != null && r.silverPrior !== 0
+              ? r.goldPrior / r.silverPrior
+              : null,
+        };
+      })
+      .filter(Boolean) as Array<{ tenorMonths: number; ratioToday: number; ratioPrior: number | null }>;
+  }, [rows]);
+
+  const headerAsOf = (Array.isArray(data) ? data?.[0]?.asOfDate : data?.asOfDate) ?? "--";
+  const headerPrior = (Array.isArray(data) ? data?.[0]?.priorDate : data?.priorDate) ?? "";
+
+  const badgeStyle = (v: number | null) => {
+    if (v == null) return { background: "#f3f4f6", color: "#111827" };
+    // For spreads: negative = backwardation (good/interesting), positive = contango
+    if (v < 0) return { background: "#dcfce7", color: "#166534" };
+    if (v > 0) return { background: "#fee2e2", color: "#991b1b" };
+    return { background: "#f3f4f6", color: "#111827" };
+  };
 
   return (
     <main style={{ padding: 24, fontFamily: "system-ui, Arial" }}>
@@ -132,33 +228,67 @@ const spotRow =
         </div>
       </div>
 
-      {/* Spot cards */}
+      {/* Top cards */}
       <div style={{ marginTop: 12 }}>
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr",
+            gridTemplateColumns: "1fr 1fr 1fr",
             gap: 16,
             marginBottom: 18,
           }}
         >
-          <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 6 }}>
+          <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
             <strong>Gold</strong>
             <div>Spot: {goldSpot != null ? goldSpot.toFixed(2) : "--"}</div>
             <div>1D Change: {goldDelta != null ? goldDelta.toFixed(2) : "--"}</div>
+            <div style={{ marginTop: 8 }}>
+              <span
+                style={{
+                  display: "inline-block",
+                  padding: "4px 8px",
+                  borderRadius: 999,
+                  fontSize: 12,
+                  ...badgeStyle(goldSpread12m),
+                }}
+              >
+                12m − 0m: {goldSpread12m != null ? goldSpread12m.toFixed(2) : "--"}
+              </span>
+            </div>
           </div>
 
-          <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 6 }}>
+          <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
             <strong>Silver</strong>
             <div>Spot: {silverSpot != null ? silverSpot.toFixed(2) : "--"}</div>
             <div>1D Change: {silverDelta != null ? silverDelta.toFixed(2) : "--"}</div>
+            <div style={{ marginTop: 8 }}>
+              <span
+                style={{
+                  display: "inline-block",
+                  padding: "4px 8px",
+                  borderRadius: 999,
+                  fontSize: 12,
+                  ...badgeStyle(silverSpread12m),
+                }}
+              >
+                12m − 0m: {silverSpread12m != null ? silverSpread12m.toFixed(2) : "--"}
+              </span>
+            </div>
+          </div>
+
+          <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
+            <strong>Gold vs Silver</strong>
+            <div>Curve Correlation (Today): {gsCorr != null ? gsCorr.toFixed(2) : "--"}</div>
+            <div style={{ fontSize: 12, opacity: 0.8, marginTop: 6 }}>
+              (This compares today’s gold curve points to today’s silver curve points across tenors.)
+            </div>
           </div>
         </div>
       </div>
 
       {/* Charts */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 18 }}>
-        <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 8, background: "white" }}>
+        <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 10, background: "white" }}>
           <h2 style={{ margin: "0 0 10px 0", fontSize: 18 }}>Gold Curve (Today vs Prior)</h2>
           <div style={{ height: 300 }}>
             <ResponsiveContainer width="100%" height="100%">
@@ -168,14 +298,14 @@ const spotRow =
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Line type="monotone" dataKey="goldToday" dot={false} />
-                <Line type="monotone" dataKey="goldPrior" dot={false} />
+                <Line name="Gold Today" type="monotone" dataKey="goldToday" dot={false} />
+                <Line name="Gold Prior" type="monotone" dataKey="goldPrior" dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 8, background: "white" }}>
+        <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 10, background: "white" }}>
           <h2 style={{ margin: "0 0 10px 0", fontSize: 18 }}>Silver Curve (Today vs Prior)</h2>
           <div style={{ height: 300 }}>
             <ResponsiveContainer width="100%" height="100%">
@@ -185,8 +315,25 @@ const spotRow =
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Line type="monotone" dataKey="silverToday" dot={false} />
-                <Line type="monotone" dataKey="silverPrior" dot={false} />
+                <Line name="Silver Today" type="monotone" dataKey="silverToday" dot={false} />
+                <Line name="Silver Prior" type="monotone" dataKey="silverPrior" dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 10, background: "white" }}>
+          <h2 style={{ margin: "0 0 10px 0", fontSize: 18 }}>Gold-to-Silver Ratio (Today vs Prior)</h2>
+          <div style={{ height: 260 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={ratioRows}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="tenorMonths" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line name="Ratio Today" type="monotone" dataKey="ratioToday" dot={false} />
+                <Line name="Ratio Prior" type="monotone" dataKey="ratioPrior" dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -194,7 +341,7 @@ const spotRow =
       </div>
 
       {/* Table */}
-      <div style={{ marginTop: 18, padding: 12, border: "1px solid #ddd", borderRadius: 8, background: "white" }}>
+      <div style={{ marginTop: 18, padding: 12, border: "1px solid #ddd", borderRadius: 10, background: "white" }}>
         <h2 style={{ margin: "0 0 12px 0", fontSize: 18 }}>Term Structure (Today vs Prior)</h2>
 
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -233,13 +380,13 @@ const spotRow =
           </tbody>
         </table>
 
-        <div style={{ marginTop: 12 }}>
+        <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
           <button
             onClick={() => setShowRaw((v) => !v)}
             style={{
               padding: "8px 10px",
               border: "1px solid #ddd",
-              borderRadius: 8,
+              borderRadius: 10,
               background: "white",
               cursor: "pointer",
               fontSize: 13,
@@ -255,7 +402,7 @@ const spotRow =
               marginTop: 10,
               padding: 12,
               border: "1px solid #ddd",
-              borderRadius: 8,
+              borderRadius: 10,
               background: "#fafafa",
               fontSize: 12,
               overflowX: "auto",
