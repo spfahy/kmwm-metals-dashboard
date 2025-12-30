@@ -86,6 +86,18 @@ function makeDomain(data, keys, padPct = 0.04) {
   return [min - pad, max + pad];
 }
 
+
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return ["auto", "auto"];
+  if (min === max) {
+    const bump = min === 0 ? 1 : Math.abs(min) * 0.02;
+    return [min - bump, max + bump];
+  }
+
+  const range = max - min;
+  const pad = range * padPct;
+  return [min - pad, max + pad];
+}
+
 export default function MetalsPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -179,6 +191,7 @@ export default function MetalsPage() {
       if (!Number.isFinite(g) || !Number.isFinite(s) || s === 0) return null;
 
       const ratioToday = g / s;
+if (ratioToday < 10 || ratioToday > 200) return null;
 
       let ratioPrior = null;
       if (r.goldPrior != null && r.silverPrior != null) {
@@ -186,6 +199,7 @@ export default function MetalsPage() {
         const sp = Number(r.silverPrior);
         if (Number.isFinite(gp) && Number.isFinite(sp) && sp !== 0) {
           ratioPrior = gp / sp;
+          if (ratioPrior < 10 || ratioPrior > 200) ratioPrior = null;
         }
       }
 
@@ -197,6 +211,7 @@ export default function MetalsPage() {
     })
     .filter(Boolean);
 }, [rows]);
+const ratioDomainLive = useMemo(() => makeDomain(ratioRows, ["ratioToday", "ratioPrior"], 0.08), [ratioRows]);
 
 
   // Dynamic y-axis domains
