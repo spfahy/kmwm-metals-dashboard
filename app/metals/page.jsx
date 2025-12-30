@@ -266,7 +266,7 @@ export default function MetalsPage() {
           <h2 style={{ margin: "0 0 10px 0", fontSize: 16 }}>Curve Shape (% vs Spot)</h2>
           <div style={{ height: 320 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={pctRows}>
+              <LineChart data={pctRows} margin={{ top: 10, right: 20, left: 48, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="tenorMonths" />
                 <YAxis domain={pctDomain} tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} />
@@ -287,7 +287,7 @@ export default function MetalsPage() {
             <h2 style={{ margin: "0 0 10px 0", fontSize: 16 }}>Gold (Absolute)</h2>
             <div style={{ height: 260 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={rows}>
+              <LineChart data={rows} margin={{ top: 10, right: 20, left: 48, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="tenorMonths" />
                   <YAxis domain={goldAbsDomain} />
@@ -304,7 +304,7 @@ export default function MetalsPage() {
             <h2 style={{ margin: "0 0 10px 0", fontSize: 16 }}>Silver (Absolute)</h2>
             <div style={{ height: 260 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={rows}>
+                <LineChart data={rows} margin={{ top: 10, right: 20, left: 48, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="tenorMonths" />
                   <YAxis domain={silverAbsDomain} />
@@ -323,7 +323,7 @@ export default function MetalsPage() {
           <h2 style={{ margin: "0 0 10px 0", fontSize: 16 }}>Gold-to-Silver Ratio by Tenor</h2>
           <div style={{ height: 240 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={ratioRows}>
+              <LineChart data={ratioRows} margin={{ top: 10, right: 20, left: 48, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="tenorMonths" />
                 <YAxis domain={ratioDomain} />
