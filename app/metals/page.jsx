@@ -88,29 +88,6 @@ function makeDomain(data, keys, padPct = 0.04) {
 }
 
 
-  if (!Number.isFinite(min) || !Number.isFinite(max)) return ["auto", "auto"];
-  if (min === max) {
-    const bump = min === 0 ? 1 : Math.abs(min) * 0.02;
-    return [min - bump, max + bump];
-  }
-
-  const range = max - min;
-  const pad = range * padPct;
-  return [min - pad, max + pad];
-}
-
-
-  if (!Number.isFinite(min) || !Number.isFinite(max)) return ["auto", "auto"];
-  if (min === max) {
-    const bump = min === 0 ? 1 : Math.abs(min) * 0.02;
-    return [min - bump, max + bump];
-  }
-
-  const range = max - min;
-  const pad = range * padPct;
-  return [min - pad, max + pad];
-}
-
 export default function MetalsPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
