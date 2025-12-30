@@ -10,10 +10,7 @@ function classifyMetal(m) {
   const s = String(m || "").trim().toLowerCase();
   if (!s) return null;
 
-  // Gold aliases
   if (s === "gold" || s === "gc" || s === "xau" || s.includes("gold")) return "Gold";
-
-  // Silver aliases
   if (s === "silver" || s === "si" || s === "xag" || s.includes("silver")) return "Silver";
 
   return null;
@@ -30,44 +27,60 @@ export async function GET() {
     const client = await pool.connect();
 
     try {
-      // Latest curve (view)
-      const curveRes = await client.query(`
-        SELECT
-          metal,
-          tenor_months,
-          price,
-          as_of_date
-        FROM v_metals_curve_today
-        ORDER BY metal, tenor_months
-      `);
-
-      // Prior curve: most recent prior date in history
-      const priorRes = await client.query(`
-        WITH dates AS (
-          SELECT DISTINCT as_of_date
-          FROM metals_curve_history
-          ORDER BY as_of_date DESC
-          LIMIT 2
-        )
-        SELECT
-          metal,
-          tenor_months,
-          price,
-          as_of_date
+      // 1) Get latest + prior dates from HISTORY (source of truth)
+      const dateRes = await client.query(`
+        SELECT DISTINCT as_of_date
         FROM metals_curve_history
-        WHERE as_of_date = (SELECT MIN(as_of_date) FROM dates)
-        ORDER BY metal, tenor_months
+        ORDER BY as_of_date DESC
+        LIMIT 2
       `);
 
-      const todayBy = {}; // key: Gold_12
+      const asOfDate = dateRes.rows?.[0]?.as_of_date ?? null;
+      const priorDate = dateRes.rows?.[1]?.as_of_date ?? null;
+
+      if (!asOfDate) {
+        return NextResponse.json({
+          asOfDate: null,
+          priorDate: null,
+          curves: [],
+          note: "No metals_curve_history data found.",
+        });
+      }
+
+      // 2) Pull TODAY curve from history using asOfDate
+      const curveRes = await client.query(
+        `
+        SELECT metal, tenor_months, price, as_of_date
+        FROM metals_curve_history
+        WHERE as_of_date = $1
+        ORDER BY metal, tenor_months
+        `,
+        [asOfDate]
+      );
+
+      // 3) Pull PRIOR curve from history using priorDate (if we have it)
+      let priorRes = { rows: [] };
+      if (priorDate) {
+        priorRes = await client.query(
+          `
+          SELECT metal, tenor_months, price, as_of_date
+          FROM metals_curve_history
+          WHERE as_of_date = $1
+          ORDER BY metal, tenor_months
+          `,
+          [priorDate]
+        );
+      }
+
+      const todayBy = {};
       const priorBy = {};
 
-      // Build maps using normalized metal labels
       for (const r of curveRes.rows) {
         const label = classifyMetal(r.metal);
         if (!label) continue;
         const tenor = Number(r.tenor_months);
         if (!Number.isFinite(tenor)) continue;
+
         todayBy[`${label}_${tenor}`] = {
           price: toNum(r.price),
           as_of_date: r.as_of_date,
@@ -79,6 +92,7 @@ export async function GET() {
         if (!label) continue;
         const tenor = Number(r.tenor_months);
         if (!Number.isFinite(tenor)) continue;
+
         priorBy[`${label}_${tenor}`] = {
           price: toNum(r.price),
           as_of_date: r.as_of_date,
@@ -99,26 +113,10 @@ export async function GET() {
           const silverToday = todayBy[`Silver_${tenor}`]?.price ?? null;
           const silverPrior = priorBy[`Silver_${tenor}`]?.price ?? null;
 
-          return {
-            tenorMonths: tenor,
-            goldToday,
-            goldPrior,
-            silverToday,
-            silverPrior,
-          };
+          return { tenorMonths: tenor, goldToday, goldPrior, silverToday, silverPrior };
         });
 
-      // Dates
-      const asOfDate =
-        curveRes.rows.length > 0 ? curveRes.rows[0].as_of_date : null;
-      const priorDate =
-        priorRes.rows.length > 0 ? priorRes.rows[0].as_of_date : null;
-
-      return NextResponse.json({
-        asOfDate,
-        priorDate,
-        curves,
-      });
+      return NextResponse.json({ asOfDate, priorDate, curves });
     } finally {
       client.release();
     }
