@@ -169,18 +169,25 @@ export default function MetalsPage() {
     }));
   }, [rows, goldSpot, silverSpot, spot]);
 
-  const ratioRows = useMemo(() => {
-    return rows
-      .map((r) => {
-        if (r.goldToday == null || r.silverToday == null || r.silverToday === 0) return null;
-        const ratioToday = r.goldToday / r.silverToday;
+  const ratioToday = Number(r.goldToday) / Number(r.silverToday);
 
-        let ratioPrior = null;
-        if (r.goldPrior != null && r.silverPrior != null && r.silverPrior !== 0) {
-          ratioPrior = r.goldPrior / r.silverPrior;
-        }
+let ratioPrior = null;
+if (r.goldPrior != null && r.silverPrior != null) {
+  const sp = Number(r.silverPrior);
+  const gp = Number(r.goldPrior);
+  if (Number.isFinite(sp) && sp !== 0 && Number.isFinite(gp)) {
+    ratioPrior = gp / sp;
+  }
+}
 
-        return { tenorMonths: r.tenorMonths, ratioToday, ratioPrior };
+
+
+        return {
+  tenorMonths: Number(r.tenorMonths),
+  ratioToday: Number.isFinite(ratioToday) ? ratioToday : null,
+  ratioPrior: Number.isFinite(ratioPrior) ? ratioPrior : null,
+};
+
       })
       .filter(Boolean);
   }, [rows]);
