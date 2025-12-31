@@ -165,6 +165,16 @@ const divergenceWatchStyle = {
   marginBottom: 16,
 };
 
+const headlineStyle = {
+  border: "1px solid #e5e7eb",
+  background: "#f9fafb",
+  borderRadius: 14,
+  padding: 12,
+  marginBottom: 14,
+  fontWeight: 800,
+  color: "#111827",
+};
+
 /* ================= page ================= */
 
 export default function MetalsPage() {
@@ -340,7 +350,9 @@ export default function MetalsPage() {
         ? r.goldPrior / r.silverPrior
         : null;
 
-    const goldChg = r.goldToday != null && r.goldPrior != null ? r.goldToday - r.goldPrior : null;
+    const goldChg =
+      r.goldToday != null && r.goldPrior != null ? r.goldToday - r.goldPrior : null;
+
     const silverChg =
       r.silverToday != null && r.silverPrior != null ? r.silverToday - r.silverPrior : null;
 
@@ -412,10 +424,56 @@ export default function MetalsPage() {
 
   const divText = divergenceText();
 
+  // ===== Biggest daily move finder (Gold / Silver / Ratio) =====
+  const biggestMove = useMemo(() => {
+    let best = null; // {metric, tenorMonths, valueAbs, valueSigned}
+    for (const r of tenorTable) {
+      const candidates = [
+        { metric: "Gold Δ", value: r.goldChg },
+        { metric: "Silver Δ", value: r.silverChg },
+        { metric: "Ratio Δ", value: r.ratioChg },
+      ];
+      for (const c of candidates) {
+        if (!Number.isFinite(c.value)) continue;
+        const abs = Math.abs(c.value);
+        if (!best || abs > best.valueAbs) {
+          best = {
+            metric: c.metric,
+            tenorMonths: r.tenorMonths,
+            valueAbs: abs,
+            valueSigned: c.value,
+          };
+        }
+      }
+    }
+    return best;
+  }, [tenorTable]);
+
+  const divergenceLabel = divergenceMajor
+    ? "Divergence ALERT"
+    : divergenceMinor
+    ? "Divergence WATCH"
+    : "No divergence";
+
+  const biggestMoveText = (() => {
+    if (!biggestMove) return "Biggest move: --";
+    const t = biggestMove.tenorMonths === 0 ? "Spot" : `${biggestMove.tenorMonths}m`;
+    const v =
+      biggestMove.metric === "Ratio Δ"
+        ? fmtRatio(biggestMove.valueSigned)
+        : fmtAbs(biggestMove.valueSigned);
+    return `Biggest move: ${biggestMove.metric} at ${t} = ${v}`;
+  })();
+
+  const todaysTake = `Today’s Take: Gold ${goldRegime} | Silver ${silverRegime} | ${divergenceLabel} | ${biggestMoveText}`;
+
   /* ================= render ================= */
 
   return (
     <div style={{ padding: 16 }}>
+      {/* ===== Executive Headline ===== */}
+      <div style={headlineStyle}>{todaysTake}</div>
+
       <h1 style={{ marginBottom: 8 }}>Gold & Silver — Term Structure</h1>
 
       {/* ================= Top Cards ================= */}
