@@ -118,7 +118,7 @@ const chipStyleForRegime = (regime) => {
 const spreadTextStyle = (spread) => {
   if (!Number.isFinite(spread)) return {};
   return spread < 0
-    ? { color: "#991b1b", fontWeight: 800 } // red if negative
+    ? { color: "#991b1b", fontWeight: 800 }
     : { color: "#111827", fontWeight: 800 };
 };
 
@@ -229,7 +229,7 @@ export default function MetalsPage() {
   // spread as % of spot (for thresholding)
   const spreadPctOfSpot = (spread, spot) => {
     if (!Number.isFinite(spread) || !Number.isFinite(spot) || spot === 0) return null;
-    return spread / spot; // decimal (e.g., -0.0025 = -0.25%)
+    return spread / spot;
   };
 
   const goldSpreadPct = spreadPctOfSpot(goldSpread, goldSpot);
@@ -306,7 +306,7 @@ export default function MetalsPage() {
   const goldAbsDomain = tightDomain(rows.map((r) => r.goldToday));
   const silverAbsDomain = tightDomain(rows.map((r) => r.silverToday));
 
-  /* ---------- tenor table + correlation ---------- */
+  /* ---------- tenor table + correlation + daily change ---------- */
 
   const tenorMap = new Map();
   for (const t of trackedTenorList) tenorMap.set(t, { tenorMonths: t });
@@ -322,11 +322,32 @@ export default function MetalsPage() {
 
   const tenorTable = trackedTenorList.map((t) => {
     const r = tenorMap.get(t) || { tenorMonths: t };
-    const ratio =
+
+    const ratioToday =
       r.goldToday != null && r.silverToday != null && r.silverToday !== 0
         ? r.goldToday / r.silverToday
         : null;
-    return { ...r, ratio };
+
+    const ratioPrior =
+      r.goldPrior != null && r.silverPrior != null && r.silverPrior !== 0
+        ? r.goldPrior / r.silverPrior
+        : null;
+
+    const goldChg = r.goldToday != null && r.goldPrior != null ? r.goldToday - r.goldPrior : null;
+    const silverChg =
+      r.silverToday != null && r.silverPrior != null ? r.silverToday - r.silverPrior : null;
+
+    const ratioChg =
+      ratioToday != null && ratioPrior != null ? ratioToday - ratioPrior : null;
+
+    return {
+      ...r,
+      ratioToday,
+      ratioPrior,
+      goldChg,
+      silverChg,
+      ratioChg,
+    };
   });
 
   const curveCorr = corr(
@@ -391,19 +412,10 @@ export default function MetalsPage() {
       <h1 style={{ marginBottom: 8 }}>Gold & Silver — Term Structure</h1>
 
       {/* ================= Top Cards ================= */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          gap: 12,
-          marginBottom: 16,
-        }}
-      >
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
         <div style={cardStyle}>
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Gold</div>
-          <div>
-            Spot: <b>{fmtAbs(goldSpot)}</b>
-          </div>
+          <div>Spot: <b>{fmtAbs(goldSpot)}</b></div>
           <div style={{ marginTop: 6 }}>
             <span style={chipStyleForRegime(goldRegime)}>{goldRegime}</span>
             <span style={{ marginLeft: 10 }}>
@@ -420,9 +432,7 @@ export default function MetalsPage() {
 
         <div style={cardStyle}>
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Silver</div>
-          <div>
-            Spot: <b>{fmtAbs(silverSpot)}</b>
-          </div>
+          <div>Spot: <b>{fmtAbs(silverSpot)}</b></div>
           <div style={{ marginTop: 6 }}>
             <span style={chipStyleForRegime(silverRegime)}>{silverRegime}</span>
             <span style={{ marginLeft: 10 }}>
@@ -439,16 +449,14 @@ export default function MetalsPage() {
 
         <div style={cardStyle}>
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Gold vs Silver</div>
-          <div>
-            Curve Correlation: <b>{corrText}</b>
-          </div>
+          <div>Curve Correlation: <b>{corrText}</b></div>
           <div style={{ marginTop: 6, fontSize: 12, opacity: 0.8 }}>
             Negative spread = backwardation.
           </div>
         </div>
       </div>
 
-      {/* ================= Divergence Banner (NEW) ================= */}
+      {/* ================= Divergence Banner ================= */}
       {divergenceMajor && divText && (
         <div style={divergenceAlertStyle}>
           <div style={{ fontWeight: 900, marginBottom: 6 }}>Divergence Alert</div>
@@ -463,7 +471,7 @@ export default function MetalsPage() {
         </div>
       )}
 
-      {/* ================= Thresholded Backwardation Banner ================= */}
+      {/* ================= Backwardation Banner ================= */}
       {anyMajorBackwardation && (
         <div style={alertBannerStyle}>
           <div style={{ fontWeight: 900, marginBottom: 6 }}>Backwardation Alert</div>
@@ -489,7 +497,6 @@ export default function MetalsPage() {
               <YAxis width={80} domain={pctDomain} tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} />
               <Tooltip formatter={fmtPct} />
               <Legend />
-
               <Line name="Gold % Today" dataKey="goldPct" stroke="#111827" strokeWidth={3} dot={false} />
               <Line name="Gold % Prior" dataKey="goldPctPrior" stroke="#9ca3af" strokeWidth={2} strokeDasharray="8 5" dot={false} />
               <Line name="Silver % Today" dataKey="silverPct" stroke="#2563eb" strokeWidth={3} dot={false} />
@@ -546,8 +553,11 @@ export default function MetalsPage() {
               <tr>
                 <th style={thtd}>Tenor</th>
                 <th style={thtd}>Gold Today</th>
+                <th style={thtd}>Gold Δ</th>
                 <th style={thtd}>Silver Today</th>
-                <th style={thtd}>Ratio (Gold / Silver)</th>
+                <th style={thtd}>Silver Δ</th>
+                <th style={thtd}>Ratio (G/S)</th>
+                <th style={thtd}>Ratio Δ</th>
               </tr>
             </thead>
             <tbody>
@@ -555,8 +565,11 @@ export default function MetalsPage() {
                 <tr key={r.tenorMonths}>
                   <td style={thtd}>{r.tenorMonths === 0 ? "Spot" : `${r.tenorMonths}m`}</td>
                   <td style={thtd}>{fmtAbs(r.goldToday)}</td>
+                  <td style={thtd}>{fmtAbs(r.goldChg)}</td>
                   <td style={thtd}>{fmtAbs(r.silverToday)}</td>
-                  <td style={thtd}>{fmtRatio(r.ratio)}</td>
+                  <td style={thtd}>{fmtAbs(r.silverChg)}</td>
+                  <td style={thtd}>{fmtRatio(r.ratioToday)}</td>
+                  <td style={thtd}>{fmtRatio(r.ratioChg)}</td>
                 </tr>
               ))}
             </tbody>
@@ -605,13 +618,10 @@ export default function MetalsPage() {
 
           <div style={cardStyle}>
             <div style={{ fontWeight: 800, marginBottom: 10 }}>Data Quality</div>
-            <div>
-              Status: <b>{qualityStatus}</b>
-            </div>
+            <div>Status: <b>{qualityStatus}</b></div>
             {missingTenors.length > 0 ? (
               <div style={{ marginTop: 8, fontSize: 13 }}>
-                Missing:{" "}
-                {missingTenors.map((t) => (t === 0 ? "Spot" : `${t}m`)).join(", ")}
+                Missing: {missingTenors.map((t) => (t === 0 ? "Spot" : `${t}m`)).join(", ")}
               </div>
             ) : (
               <div style={{ marginTop: 8, fontSize: 13 }}>
