@@ -112,29 +112,44 @@ export default function MetalsPage() {
     return () => (alive = false);
   }, []);
 
-  const curvesRaw = Array.isArray(data) ? data : data?.curves ?? [];
+  // -----------------------------
+// Decision Panel – Curve Prep
+// -----------------------------
 
-  const rows = useMemo(() => {
-    return curvesRaw
-      .map((r) => {
-        const tenor = toNumOrNull(r.tenorMonths ?? r.tenor_months ?? r.months);
-        if (tenor == null) return null;
-        return {
-          tenorMonths: tenor,
-          goldToday: toNumOrNull(r.goldToday ?? r.gold),
-          goldPrior: toNumOrNull(r.goldPrior),
-          silverToday: toNumOrNull(r.silverToday ?? r.silver),
-          silverPrior: toNumOrNull(r.silverPrior),
-        };
-      })
-      .filter(Boolean)
-      .sort((a, b) => a.tenorMonths - b.tenorMonths);
-  }, [curvesRaw]);
+const curvesRaw = Array.isArray(data?.curves)
+  ? data.curves
+  : Array.isArray(data)
+  ? data
+  : [];
 
-  const asOfDate = (Array.isArray(data) ? data?.[0]?.asOfDate : data?.asOfDate) ?? "--";
-  const priorDate = (Array.isArray(data) ? data?.[0]?.priorDate : data?.priorDate) ?? "--";
+const trackedTenors = [0, 1, 2, 3, 4, 5, 12];
 
-  const trackedTenors = new Set([0, 1, 2, 3, 4, 5, 12]);
+const rows = useMemo(() => {
+  return curvesRaw
+    .map((r) => {
+      const tenor =
+        toNumOrNull(r.tenorMonths) ??
+        toNumOrNull(r.tenor_months) ??
+        toNumOrNull(r.months);
+
+      if (!trackedTenors.includes(tenor)) return null;
+
+      return {
+        tenorMonths: tenor,
+        gold: toNumOrNull(r.goldToday ?? r.gold),
+        silver: toNumOrNull(r.silverToday ?? r.silver),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.tenorMonths - b.tenorMonths);
+}, [curvesRaw]);
+
+const asOfDate =
+  (Array.isArray(data) ? data?.[0]?.asOfDate : data?.asOfDate) ?? "--";
+
+const priorDate =
+  (Array.isArray(data) ? data?.[0]?.priorDate : data?.priorDate) ?? "--";
+
   const trackedRows = rows.filter((r) => trackedTenors.has(r.tenorMonths));
 
   const spot =
