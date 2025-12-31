@@ -59,9 +59,9 @@ const corr = (xs, ys) => {
   const mx = x.reduce((s, v) => s + v, 0) / x.length;
   const my = y.reduce((s, v) => s + v, 0) / y.length;
 
-  let num = 0;
-  let dx = 0;
-  let dy = 0;
+  let num = 0,
+    dx = 0,
+    dy = 0;
 
   for (let i = 0; i < x.length; i++) {
     const a = x[i] - mx;
@@ -77,14 +77,14 @@ const corr = (xs, ys) => {
   return num / den;
 };
 
-const chipStyle = (bg, color) => ({
+const chip = (text, bg, color) => ({
   display: "inline-block",
   padding: "4px 10px",
   borderRadius: 999,
   background: bg,
   color,
   fontSize: 12,
-  fontWeight: 600,
+  fontWeight: 700,
 });
 
 const cardStyle = {
@@ -139,8 +139,12 @@ export default function MetalsPage() {
 
         return {
           tenorMonths: tenor,
-          goldToday: toNumOrNull(r.goldToday) ?? (metal.includes("gold") ? price : null),
-          silverToday: toNumOrNull(r.silverToday) ?? (metal.includes("silver") ? price : null),
+          goldToday:
+            toNumOrNull(r.goldToday) ??
+            (metal.includes("gold") ? price : null),
+          silverToday:
+            toNumOrNull(r.silverToday) ??
+            (metal.includes("silver") ? price : null),
           goldPrior: toNumOrNull(r.goldPrior),
           silverPrior: toNumOrNull(r.silverPrior),
         };
@@ -164,16 +168,25 @@ export default function MetalsPage() {
   const silverSpread =
     silverSpot != null && silver12m != null ? silver12m - silverSpot : null;
 
-  const goldRegime =
-    goldSpread == null ? "Unknown" : goldSpread < 0 ? "Backwardation" : "Contango";
-  const silverRegime =
-    silverSpread == null ? "Unknown" : silverSpread < 0 ? "Backwardation" : "Contango";
+  const regimeForSpread = (s) =>
+    s == null ? "Unknown" : s < 0 ? "Backwardation" : "Contango";
+
+  const goldRegime = regimeForSpread(goldSpread);
+  const silverRegime = regimeForSpread(silverSpread);
 
   const regimeChip = (reg) => {
-    if (reg === "Backwardation") return chipStyle("#fee2e2", "#991b1b");
-    if (reg === "Contango") return chipStyle("#dcfce7", "#166534");
-    return chipStyle("#e5e7eb", "#111827");
+    if (reg === "Backwardation") return chip("Backwardation", "#fee2e2", "#991b1b");
+    if (reg === "Contango") return chip("Contango", "#dcfce7", "#166534");
+    return chip("Unknown", "#e5e7eb", "#111827");
   };
+
+  const spreadStrength = (s, spot) => {
+    if (s == null || spot == null || spot === 0) return null;
+    return (s / spot) * 100; // percent
+  };
+
+  const goldStrength = spreadStrength(goldSpread, goldSpot);
+  const silverStrength = spreadStrength(silverSpread, silverSpot);
 
   /* ---------- curve shape ---------- */
 
@@ -204,18 +217,18 @@ export default function MetalsPage() {
   const goldAbsDomain = tightDomain(rows.map((r) => r.goldToday));
   const silverAbsDomain = tightDomain(rows.map((r) => r.silverToday));
 
-  /* ---------- correlation + tenor table ---------- */
+  /* ---------- tenor table + correlation ---------- */
 
   const tenorMap = new Map();
   for (const t of trackedTenorList) tenorMap.set(t, { tenorMonths: t });
 
   for (const r of rows) {
-    const row = tenorMap.get(r.tenorMonths) || { tenorMonths: r.tenorMonths };
-    if (r.goldToday != null) row.goldToday = r.goldToday;
-    if (r.silverToday != null) row.silverToday = r.silverToday;
-    if (r.goldPrior != null) row.goldPrior = r.goldPrior;
-    if (r.silverPrior != null) row.silverPrior = r.silverPrior;
-    tenorMap.set(r.tenorMonths, row);
+    const base = tenorMap.get(r.tenorMonths) || { tenorMonths: r.tenorMonths };
+    if (r.goldToday != null) base.goldToday = r.goldToday;
+    if (r.silverToday != null) base.silverToday = r.silverToday;
+    if (r.goldPrior != null) base.goldPrior = r.goldPrior;
+    if (r.silverPrior != null) base.silverPrior = r.silverPrior;
+    tenorMap.set(r.tenorMonths, base);
   }
 
   const tenorTable = trackedTenorList.map((t) => {
@@ -232,31 +245,41 @@ export default function MetalsPage() {
     tenorTable.map((r) => r.silverToday)
   );
 
-  const corrText =
-    curveCorr == null ? "--" : Number(curveCorr).toFixed(2);
+  const corrText = curveCorr == null ? "--" : Number(curveCorr).toFixed(2);
 
   /* ---------- data quality ---------- */
 
   const missingTenors = trackedTenorList.filter((t) => {
     const r = tenorMap.get(t);
-    const hasGold = r?.goldToday != null;
-    const hasSilver = r?.silverToday != null;
-    return !(hasGold && hasSilver);
+    return !(r?.goldToday != null && r?.silverToday != null);
   });
 
-  const qualityStatus =
-    missingTenors.length === 0 ? "Complete" : "Missing Tenors";
+  const qualityStatus = missingTenors.length === 0 ? "Complete" : "Missing Tenors";
 
-  /* ---------- decision read ---------- */
+  /* ---------- bottom “decision” panels ---------- */
 
   const divergence =
     goldRegime !== "Unknown" &&
     silverRegime !== "Unknown" &&
     goldRegime !== silverRegime;
 
-  const decisionLine = divergence
-    ? "Divergence: gold and silver curve regimes disagree (watch macro regime + industrial demand signals)."
-    : "Aligned: gold and silver curve regimes agree (use spread direction as the primary signal).";
+  const tighterMetal =
+    goldSpread != null && silverSpread != null
+      ? goldSpread < silverSpread
+        ? "Gold"
+        : "Silver"
+      : null;
+
+  const divergenceLine = divergence
+    ? `Divergence: Gold is ${goldRegime}, Silver is ${silverRegime}. Treat this as a signal conflict.`
+    : `Aligned: Gold and Silver are both ${goldRegime}.`;
+
+  const interpretationLine =
+    tighterMetal == null
+      ? "Interpretation: insufficient data."
+      : tighterMetal === "Gold"
+      ? "Interpretation: Gold curve is tighter than Silver (more monetary/defensive bid)."
+      : "Interpretation: Silver curve is tighter than Gold (more industrial/risk-on bid).";
 
   /* ================= render ================= */
 
@@ -265,20 +288,20 @@ export default function MetalsPage() {
       <h1 style={{ marginBottom: 8 }}>Gold & Silver — Term Structure</h1>
 
       {/* ================= Top Cards ================= */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          gap: 12,
-          marginBottom: 16,
-        }}
-      >
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
         <div style={cardStyle}>
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Gold</div>
           <div>Spot: <b>{fmtAbs(goldSpot)}</b></div>
           <div style={{ marginTop: 6 }}>
-            <span style={regimeChip(goldRegime)}>{goldRegime}</span>
-            <span style={{ marginLeft: 10 }}>12m − 0m: <b>{fmtAbs(goldSpread)}</b></span>
+            {regimeChip(goldRegime)}
+            <span style={{ marginLeft: 10 }}>
+              12m − 0m: <b>{fmtAbs(goldSpread)}</b>
+              {goldStrength != null && (
+                <span style={{ marginLeft: 8, opacity: 0.75 }}>
+                  ({goldStrength.toFixed(2)}%)
+                </span>
+              )}
+            </span>
           </div>
         </div>
 
@@ -286,8 +309,15 @@ export default function MetalsPage() {
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Silver</div>
           <div>Spot: <b>{fmtAbs(silverSpot)}</b></div>
           <div style={{ marginTop: 6 }}>
-            <span style={regimeChip(silverRegime)}>{silverRegime}</span>
-            <span style={{ marginLeft: 10 }}>12m − 0m: <b>{fmtAbs(silverSpread)}</b></span>
+            {regimeChip(silverRegime)}
+            <span style={{ marginLeft: 10 }}>
+              12m − 0m: <b>{fmtAbs(silverSpread)}</b>
+              {silverStrength != null && (
+                <span style={{ marginLeft: 8, opacity: 0.75 }}>
+                  ({silverStrength.toFixed(2)}%)
+                </span>
+              )}
+            </span>
           </div>
         </div>
 
@@ -303,20 +333,12 @@ export default function MetalsPage() {
       {/* ================= Curve Shape ================= */}
       <div style={cardStyle}>
         <div style={{ fontWeight: 800, marginBottom: 8 }}>Curve Shape (% vs Spot)</div>
-
         <div style={{ height: 320 }}>
           <ResponsiveContainer>
-            <LineChart
-              data={curveRows}
-              margin={{ top: 10, right: 16, left: 36, bottom: 10 }}
-            >
+            <LineChart data={curveRows} margin={{ top: 10, right: 16, left: 36, bottom: 10 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="tenorMonths" />
-              <YAxis
-                width={80}
-                domain={pctDomain}
-                tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
-              />
+              <YAxis width={80} domain={pctDomain} tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} />
               <Tooltip formatter={fmtPct} />
               <Legend />
 
@@ -330,14 +352,7 @@ export default function MetalsPage() {
       </div>
 
       {/* ================= Absolute Charts ================= */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 16,
-          marginTop: 16,
-        }}
-      >
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 }}>
         <div style={cardStyle}>
           <div style={{ fontWeight: 800, marginBottom: 8 }}>Gold (Absolute)</div>
           <div style={{ height: 260 }}>
@@ -373,7 +388,7 @@ export default function MetalsPage() {
         </div>
       </div>
 
-      {/* ================= Bottom Panels ================= */}
+      {/* ================= Bottom Panels (REBUILT) ================= */}
       <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16, marginTop: 16 }}>
         {/* Tenor Table */}
         <div style={cardStyle}>
@@ -405,23 +420,23 @@ export default function MetalsPage() {
           <div style={cardStyle}>
             <div style={{ fontWeight: 800, marginBottom: 10 }}>Decision Read</div>
             <div style={{ marginBottom: 10 }}>
-              Gold: <span style={regimeChip(goldRegime)}>{goldRegime}</span>
+              Gold: {regimeChip(goldRegime)}{" "}
               <span style={{ marginLeft: 10 }}>
-                Silver: <span style={regimeChip(silverRegime)}>{silverRegime}</span>
+                Silver: {regimeChip(silverRegime)}
               </span>
             </div>
-            <div style={{ fontSize: 13, lineHeight: 1.4 }}>{decisionLine}</div>
+            <div style={{ fontSize: 13, lineHeight: 1.4, marginBottom: 8 }}>{divergenceLine}</div>
+            <div style={{ fontSize: 13, lineHeight: 1.4 }}>{interpretationLine}</div>
           </div>
 
           <div style={cardStyle}>
             <div style={{ fontWeight: 800, marginBottom: 10 }}>Data Quality</div>
             <div>Status: <b>{qualityStatus}</b></div>
-            {missingTenors.length > 0 && (
+            {missingTenors.length > 0 ? (
               <div style={{ marginTop: 8, fontSize: 13 }}>
                 Missing: {missingTenors.map((t) => (t === 0 ? "Spot" : `${t}m`)).join(", ")}
               </div>
-            )}
-            {missingTenors.length === 0 && (
+            ) : (
               <div style={{ marginTop: 8, fontSize: 13 }}>
                 All tracked tenors present for both metals.
               </div>
