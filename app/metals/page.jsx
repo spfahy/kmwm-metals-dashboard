@@ -133,12 +133,20 @@ const rows = useMemo(() => {
         toNumOrNull(r.months);
 
       if (tenor == null || !trackedTenors.has(tenor)) return null;
-
+const metal = String(r.metal ?? r.Metal ?? "").toLowerCase();
+const price = toNumOrNull(r.price ?? r.Price);
       return {
-        tenorMonths: tenor,
-        gold: toNumOrNull(r.goldToday ?? r.gold),
-        silver: toNumOrNull(r.silverToday ?? r.silver),
-      };
+  tenorMonths: tenor,
+
+  // "Today" values (support multiple possible field names)
+  goldToday: toNumOrNull(r.goldToday ?? r.gold_today ?? r.gold ?? r.priceGold ?? r.gold_price ?? (metal.includes("gold") ? price : null)),
+  silverToday: toNumOrNull(r.silverToday ?? r.silver_today ?? r.silver ?? r.priceSilver ?? r.silver_price ?? (metal.includes("silver") ? price : null)),
+
+  // "Prior" values (support multiple possible field names)
+  goldPrior: toNumOrNull(r.goldPrior ?? r.gold_prior ?? r.priorGold ?? r.gold_prev ?? r.gold_yesterday),
+  silverPrior: toNumOrNull(r.silverPrior ?? r.silver_prior ?? r.priorSilver ?? r.silver_prev ?? r.silver_yesterday),
+};
+
     })
     .filter(Boolean)
     .sort((a, b) => a.tenorMonths - b.tenorMonths);
