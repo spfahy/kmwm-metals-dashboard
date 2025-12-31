@@ -77,16 +77,6 @@ const corr = (xs, ys) => {
   return num / den;
 };
 
-const chip = (text, bg, color) => ({
-  display: "inline-block",
-  padding: "4px 10px",
-  borderRadius: 999,
-  background: bg,
-  color,
-  fontSize: 12,
-  fontWeight: 700,
-});
-
 const cardStyle = {
   border: "1px solid #ddd",
   borderRadius: 14,
@@ -104,6 +94,25 @@ const thtd = {
   padding: "8px 8px",
   borderBottom: "1px solid #eee",
   textAlign: "left",
+};
+
+const chipStyleForRegime = (regime) => {
+  const base = {
+    display: "inline-block",
+    padding: "4px 10px",
+    borderRadius: 999,
+    fontSize: 12,
+    fontWeight: 700,
+    lineHeight: 1.2,
+  };
+
+  if (regime === "Backwardation") {
+    return { ...base, background: "#fee2e2", color: "#991b1b" };
+  }
+  if (regime === "Contango") {
+    return { ...base, background: "#dcfce7", color: "#166534" };
+  }
+  return { ...base, background: "#e5e7eb", color: "#111827" };
 };
 
 /* ================= page ================= */
@@ -174,19 +183,13 @@ export default function MetalsPage() {
   const goldRegime = regimeForSpread(goldSpread);
   const silverRegime = regimeForSpread(silverSpread);
 
-  const regimeChip = (reg) => {
-    if (reg === "Backwardation") return chip("Backwardation", "#fee2e2", "#991b1b");
-    if (reg === "Contango") return chip("Contango", "#dcfce7", "#166534");
-    return chip("Unknown", "#e5e7eb", "#111827");
-  };
-
-  const spreadStrength = (s, spot) => {
+  const spreadStrengthPct = (s, spot) => {
     if (s == null || spot == null || spot === 0) return null;
-    return (s / spot) * 100; // percent
+    return (s / spot) * 100;
   };
 
-  const goldStrength = spreadStrength(goldSpread, goldSpot);
-  const silverStrength = spreadStrength(silverSpread, silverSpot);
+  const goldStrength = spreadStrengthPct(goldSpread, goldSpot);
+  const silverStrength = spreadStrengthPct(silverSpread, silverSpot);
 
   /* ---------- curve shape ---------- */
 
@@ -211,7 +214,12 @@ export default function MetalsPage() {
   }));
 
   const pctDomain = tightDomain(
-    curveRows.flatMap((r) => [r.goldPct, r.goldPctPrior, r.silverPct, r.silverPctPrior])
+    curveRows.flatMap((r) => [
+      r.goldPct,
+      r.goldPctPrior,
+      r.silverPct,
+      r.silverPctPrior,
+    ])
   );
 
   const goldAbsDomain = tightDomain(rows.map((r) => r.goldToday));
@@ -256,7 +264,7 @@ export default function MetalsPage() {
 
   const qualityStatus = missingTenors.length === 0 ? "Complete" : "Missing Tenors";
 
-  /* ---------- bottom “decision” panels ---------- */
+  /* ---------- decision panels ---------- */
 
   const divergence =
     goldRegime !== "Unknown" &&
@@ -291,9 +299,11 @@ export default function MetalsPage() {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
         <div style={cardStyle}>
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Gold</div>
-          <div>Spot: <b>{fmtAbs(goldSpot)}</b></div>
+          <div>
+            Spot: <b>{fmtAbs(goldSpot)}</b>
+          </div>
           <div style={{ marginTop: 6 }}>
-            {regimeChip(goldRegime)}
+            <span style={chipStyleForRegime(goldRegime)}>{goldRegime}</span>
             <span style={{ marginLeft: 10 }}>
               12m − 0m: <b>{fmtAbs(goldSpread)}</b>
               {goldStrength != null && (
@@ -307,9 +317,11 @@ export default function MetalsPage() {
 
         <div style={cardStyle}>
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Silver</div>
-          <div>Spot: <b>{fmtAbs(silverSpot)}</b></div>
+          <div>
+            Spot: <b>{fmtAbs(silverSpot)}</b>
+          </div>
           <div style={{ marginTop: 6 }}>
-            {regimeChip(silverRegime)}
+            <span style={chipStyleForRegime(silverRegime)}>{silverRegime}</span>
             <span style={{ marginLeft: 10 }}>
               12m − 0m: <b>{fmtAbs(silverSpread)}</b>
               {silverStrength != null && (
@@ -323,7 +335,9 @@ export default function MetalsPage() {
 
         <div style={cardStyle}>
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Gold vs Silver</div>
-          <div>Curve Correlation: <b>{corrText}</b></div>
+          <div>
+            Curve Correlation: <b>{corrText}</b>
+          </div>
           <div style={{ marginTop: 6, fontSize: 12, opacity: 0.8 }}>
             Negative spread = backwardation.
           </div>
@@ -388,7 +402,7 @@ export default function MetalsPage() {
         </div>
       </div>
 
-      {/* ================= Bottom Panels (REBUILT) ================= */}
+      {/* ================= Bottom Panels ================= */}
       <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16, marginTop: 16 }}>
         {/* Tenor Table */}
         <div style={cardStyle}>
@@ -420,9 +434,9 @@ export default function MetalsPage() {
           <div style={cardStyle}>
             <div style={{ fontWeight: 800, marginBottom: 10 }}>Decision Read</div>
             <div style={{ marginBottom: 10 }}>
-              Gold: {regimeChip(goldRegime)}{" "}
+              Gold: <span style={chipStyleForRegime(goldRegime)}>{goldRegime}</span>
               <span style={{ marginLeft: 10 }}>
-                Silver: {regimeChip(silverRegime)}
+                Silver: <span style={chipStyleForRegime(silverRegime)}>{silverRegime}</span>
               </span>
             </div>
             <div style={{ fontSize: 13, lineHeight: 1.4, marginBottom: 8 }}>{divergenceLine}</div>
@@ -431,10 +445,13 @@ export default function MetalsPage() {
 
           <div style={cardStyle}>
             <div style={{ fontWeight: 800, marginBottom: 10 }}>Data Quality</div>
-            <div>Status: <b>{qualityStatus}</b></div>
+            <div>
+              Status: <b>{qualityStatus}</b>
+            </div>
             {missingTenors.length > 0 ? (
               <div style={{ marginTop: 8, fontSize: 13 }}>
-                Missing: {missingTenors.map((t) => (t === 0 ? "Spot" : `${t}m`)).join(", ")}
+                Missing:{" "}
+                {missingTenors.map((t) => (t === 0 ? "Spot" : `${t}m`)).join(", ")}
               </div>
             ) : (
               <div style={{ marginTop: 8, fontSize: 13 }}>
