@@ -21,6 +21,13 @@ const toNumOrNull = (v) => {
 
 const fmtPct = (v) =>
   v == null ? "--" : `${(v * 100).toFixed(1)}%`;
+const fmtAbs = (v) =>
+  v == null
+    ? "--"
+    : Number(v).toLocaleString(undefined, {
+        minimumFractionDigits: 3,
+        maximumFractionDigits: 3,
+      });
 
 const tightDomain = (values) => {
   const v = values.filter((x) => Number.isFinite(x));
@@ -204,7 +211,12 @@ export default function MetalsPage() {
               >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="tenorMonths" />
-                <YAxis width={80} domain={goldAbsDomain} />
+                <YAxis
+  width={80}
+  domain={goldAbsDomain}
+  tickFormatter={fmtAbs}
+/>
+
                 <Tooltip />
                 <Legend />
                 <Line
@@ -238,7 +250,12 @@ export default function MetalsPage() {
               >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="tenorMonths" />
-                <YAxis width={80} domain={silverAbsDomain} />
+                <YAxis
+  width={80}
+  domain={silverAbsDomain}
+  tickFormatter={fmtAbs}
+/>
+
                 <Tooltip />
                 <Legend />
                 <Line
