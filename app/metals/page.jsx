@@ -115,6 +115,22 @@ const chipStyleForRegime = (regime) => {
   return { ...base, background: "#e5e7eb", color: "#111827" };
 };
 
+const spreadTextStyle = (spread) => {
+  if (!Number.isFinite(spread)) return {};
+  return spread < 0
+    ? { color: "#991b1b", fontWeight: 800 } // red
+    : { color: "#111827", fontWeight: 800 }; // normal dark
+};
+
+const alertBannerStyle = {
+  border: "1px solid #fecaca",
+  background: "#fee2e2",
+  color: "#7f1d1d",
+  borderRadius: 14,
+  padding: 12,
+  marginBottom: 16,
+};
+
 /* ================= page ================= */
 
 export default function MetalsPage() {
@@ -190,6 +206,11 @@ export default function MetalsPage() {
 
   const goldStrength = spreadStrengthPct(goldSpread, goldSpot);
   const silverStrength = spreadStrengthPct(silverSpread, silverSpot);
+
+  // ===== Backwardation Alert flags =====
+  const goldBackwardated = Number.isFinite(goldSpread) && goldSpread < 0;
+  const silverBackwardated = Number.isFinite(silverSpread) && silverSpread < 0;
+  const anyBackwardation = goldBackwardated || silverBackwardated;
 
   /* ---------- curve shape ---------- */
 
@@ -289,6 +310,14 @@ export default function MetalsPage() {
       ? "Interpretation: Gold curve is tighter than Silver (more monetary/defensive bid)."
       : "Interpretation: Silver curve is tighter than Gold (more industrial/risk-on bid).";
 
+  const backwardationAlertLine = !anyBackwardation
+    ? null
+    : `ALERT: Backwardation detected — ${
+        goldBackwardated ? `Gold 12m−0m = ${fmtAbs(goldSpread)}` : ""
+      }${goldBackwardated && silverBackwardated ? " | " : ""}${
+        silverBackwardated ? `Silver 12m−0m = ${fmtAbs(silverSpread)}` : ""
+      }`;
+
   /* ================= render ================= */
 
   return (
@@ -296,7 +325,14 @@ export default function MetalsPage() {
       <h1 style={{ marginBottom: 8 }}>Gold & Silver — Term Structure</h1>
 
       {/* ================= Top Cards ================= */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr",
+          gap: 12,
+          marginBottom: 16,
+        }}
+      >
         <div style={cardStyle}>
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Gold</div>
           <div>
@@ -305,7 +341,8 @@ export default function MetalsPage() {
           <div style={{ marginTop: 6 }}>
             <span style={chipStyleForRegime(goldRegime)}>{goldRegime}</span>
             <span style={{ marginLeft: 10 }}>
-              12m − 0m: <b>{fmtAbs(goldSpread)}</b>
+              12m − 0m:{" "}
+              <span style={spreadTextStyle(goldSpread)}>{fmtAbs(goldSpread)}</span>
               {goldStrength != null && (
                 <span style={{ marginLeft: 8, opacity: 0.75 }}>
                   ({goldStrength.toFixed(2)}%)
@@ -323,7 +360,8 @@ export default function MetalsPage() {
           <div style={{ marginTop: 6 }}>
             <span style={chipStyleForRegime(silverRegime)}>{silverRegime}</span>
             <span style={{ marginLeft: 10 }}>
-              12m − 0m: <b>{fmtAbs(silverSpread)}</b>
+              12m − 0m:{" "}
+              <span style={spreadTextStyle(silverSpread)}>{fmtAbs(silverSpread)}</span>
               {silverStrength != null && (
                 <span style={{ marginLeft: 8, opacity: 0.75 }}>
                   ({silverStrength.toFixed(2)}%)
@@ -343,6 +381,16 @@ export default function MetalsPage() {
           </div>
         </div>
       </div>
+
+      {/* ================= Backwardation Alert Banner ================= */}
+      {anyBackwardation && (
+        <div style={alertBannerStyle}>
+          <div style={{ fontWeight: 900, marginBottom: 6 }}>Backwardation Alert</div>
+          <div style={{ fontSize: 13, lineHeight: 1.4 }}>
+            {backwardationAlertLine}
+          </div>
+        </div>
+      )}
 
       {/* ================= Curve Shape ================= */}
       <div style={cardStyle}>
@@ -433,12 +481,20 @@ export default function MetalsPage() {
         <div style={{ display: "grid", gap: 16 }}>
           <div style={cardStyle}>
             <div style={{ fontWeight: 800, marginBottom: 10 }}>Decision Read</div>
+
+            {anyBackwardation && (
+              <div style={{ marginBottom: 10, fontSize: 13, fontWeight: 800, color: "#991b1b" }}>
+                {backwardationAlertLine}
+              </div>
+            )}
+
             <div style={{ marginBottom: 10 }}>
               Gold: <span style={chipStyleForRegime(goldRegime)}>{goldRegime}</span>
               <span style={{ marginLeft: 10 }}>
                 Silver: <span style={chipStyleForRegime(silverRegime)}>{silverRegime}</span>
               </span>
             </div>
+
             <div style={{ fontSize: 13, lineHeight: 1.4, marginBottom: 8 }}>{divergenceLine}</div>
             <div style={{ fontSize: 13, lineHeight: 1.4 }}>{interpretationLine}</div>
           </div>
