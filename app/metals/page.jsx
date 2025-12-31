@@ -221,6 +221,8 @@ export default function MetalsPage() {
       .sort((a, b) => a.tenorMonths - b.tenorMonths);
   }, [curvesRaw]);
 
+  /* ---------- summary values ---------- */
+
   const goldSpot = rows.find((r) => r.tenorMonths === 0)?.goldToday;
   const silverSpot = rows.find((r) => r.tenorMonths === 0)?.silverToday;
 
@@ -247,7 +249,7 @@ export default function MetalsPage() {
   const goldSpreadPct = spreadPctOfSpot(goldSpread, goldSpot);
   const silverSpreadPct = spreadPctOfSpot(silverSpread, silverSpot);
 
-  const BACKWARDATION_ALERT_PCT = -0.0025;
+  const BACKWARDATION_ALERT_PCT = -0.0025; // -0.25%
 
   const goldMajorBack =
     goldSpreadPct != null && goldSpreadPct <= BACKWARDATION_ALERT_PCT;
@@ -292,6 +294,8 @@ export default function MetalsPage() {
 
   const divText = divergenceText();
 
+  /* ---------- curve shape ---------- */
+
   const curveRows = rows.map((r) => ({
     ...r,
     goldPct:
@@ -324,6 +328,8 @@ export default function MetalsPage() {
   const goldAbsDomain = tightDomain(rows.map((r) => r.goldToday));
   const silverAbsDomain = tightDomain(rows.map((r) => r.silverToday));
 
+  /* ---------- tenor table + correlation + daily change ---------- */
+
   const tenorMap = new Map();
   for (const t of trackedTenorList) tenorMap.set(t, { tenorMonths: t });
 
@@ -350,9 +356,7 @@ export default function MetalsPage() {
         : null;
 
     const goldChg =
-      r.goldToday != null && r.goldPrior != null
-        ? r.goldToday - r.goldPrior
-        : null;
+      r.goldToday != null && r.goldPrior != null ? r.goldToday - r.goldPrior : null;
 
     const silverChg =
       r.silverToday != null && r.silverPrior != null
@@ -378,6 +382,8 @@ export default function MetalsPage() {
   );
   const corrText = curveCorr == null ? "--" : Number(curveCorr).toFixed(2);
 
+  /* ---------- data quality ---------- */
+
   const missingTenors = trackedTenorList.filter((t) => {
     const r = tenorMap.get(t);
     return !(r?.goldToday != null && r?.silverToday != null);
@@ -386,6 +392,8 @@ export default function MetalsPage() {
 
   const signalConfidence =
     missingTenors.length === 0 ? "High" : missingTenors.length <= 2 ? "Medium" : "Low";
+
+  /* ---------- action bias ---------- */
 
   const actionBias = divergenceMajor
     ? "Caution / Neutral (conflict)"
@@ -396,6 +404,8 @@ export default function MetalsPage() {
     : goldRegime === "Contango" && silverRegime === "Contango"
     ? "Risk-On"
     : "Neutral";
+
+  /* ---------- decision text ---------- */
 
   const divergenceLine =
     goldRegime !== "Unknown" &&
@@ -418,6 +428,8 @@ export default function MetalsPage() {
       ? "Interpretation: Gold curve is tighter than Silver (more monetary/defensive bid)."
       : "Interpretation: Silver curve is tighter than Gold (more industrial/risk-on bid).";
 
+  /* ---------- alerts ---------- */
+
   const majorAlertLine = `ALERT (≤ -0.25% of spot): ${
     goldMajorBack ? `Gold 12m−0m = ${fmtAbs(goldSpread)} (${fmtPct(goldSpreadPct)})` : ""
   }${goldMajorBack && silverMajorBack ? " | " : ""}${
@@ -429,6 +441,8 @@ export default function MetalsPage() {
   }${goldMinorBack && silverMinorBack ? " | " : ""}${
     silverMinorBack ? `Silver 12m−0m = ${fmtAbs(silverSpread)} (${fmtPct(silverSpreadPct)})` : ""
   }`;
+
+  /* ---------- biggest daily move ---------- */
 
   let biggestMove = null;
   for (const r of tenorTable) {
@@ -467,7 +481,9 @@ export default function MetalsPage() {
     return `Biggest move: ${biggestMove.metric} at ${t} = ${v}`;
   })();
 
-  const todaysTake = `Today’s Take: Gold ${goldRegime} | Silver ${silverRegime} | ${divergenceLabel} | ${biggestMoveText}`;
+  /* ---------- headline (NOW includes Action Bias + Confidence) ---------- */
+
+  const todaysTake = `Action Bias: ${actionBias} | Confidence: ${signalConfidence} | Gold ${goldRegime} | Silver ${silverRegime} | ${divergenceLabel}`;
 
   const loading = data == null;
 
@@ -550,11 +566,8 @@ export default function MetalsPage() {
               <Tooltip formatter={fmtPct} />
               <Legend />
 
-              {/* TODAY = bold/solid */}
+              {/* Legend order: Gold Today, Gold Prior, Silver Today, Silver Prior */}
               <Line name="Gold % Today" dataKey="goldPct" stroke="#111827" strokeWidth={3} dot={false} />
-              <Line name="Silver % Today" dataKey="silverPct" stroke="#2563eb" strokeWidth={3} dot={false} />
-
-              {/* PRIOR = dashed + visible markers (easy to follow) */}
               <Line
                 name="Gold % Prior"
                 dataKey="goldPctPrior"
@@ -564,6 +577,7 @@ export default function MetalsPage() {
                 dot={{ r: 3 }}
                 activeDot={{ r: 5 }}
               />
+              <Line name="Silver % Today" dataKey="silverPct" stroke="#2563eb" strokeWidth={3} dot={false} />
               <Line
                 name="Silver % Prior"
                 dataKey="silverPctPrior"
@@ -590,7 +604,15 @@ export default function MetalsPage() {
                 <Tooltip formatter={fmtAbs} />
                 <Legend />
                 <Line name="Gold Today" dataKey="goldToday" stroke="#111827" strokeWidth={3} dot={false} />
-                <Line name="Gold Prior" dataKey="goldPrior" stroke="#9ca3af" strokeWidth={2} strokeDasharray="8 5" dot={false} />
+                <Line
+                  name="Gold Prior"
+                  dataKey="goldPrior"
+                  stroke="#6b7280"
+                  strokeWidth={2.5}
+                  strokeDasharray="10 6"
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -607,7 +629,15 @@ export default function MetalsPage() {
                 <Tooltip formatter={fmtAbs} />
                 <Legend />
                 <Line name="Silver Today" dataKey="silverToday" stroke="#2563eb" strokeWidth={3} dot={false} />
-                <Line name="Silver Prior" dataKey="silverPrior" stroke="#93c5fd" strokeWidth={2} strokeDasharray="8 5" dot={false} />
+                <Line
+                  name="Silver Prior"
+                  dataKey="silverPrior"
+                  stroke="#3b82f6"
+                  strokeWidth={2.5}
+                  strokeDasharray="10 6"
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -648,6 +678,7 @@ export default function MetalsPage() {
         <div style={{ display: "grid", gap: 16 }}>
           <div style={cardStyle}>
             <div style={{ fontWeight: 800, marginBottom: 10 }}>Decision Read</div>
+
             <div style={{ fontSize: 13, marginBottom: 6 }}>
               <b>Action Bias:</b> {actionBias}
             </div>
