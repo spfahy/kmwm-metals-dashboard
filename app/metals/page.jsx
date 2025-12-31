@@ -123,10 +123,10 @@ const spreadTextStyle = (spread) => {
 };
 
 const deltaTextStyle = (v) => {
-  if (!Number.isFinite(v)) return { color: "#6b7280" }; // gray
-  if (v > 0) return { color: "#166534", fontWeight: 800 }; // green
-  if (v < 0) return { color: "#991b1b", fontWeight: 800 }; // red
-  return { color: "#6b7280", fontWeight: 700 }; // gray for zero
+  if (!Number.isFinite(v)) return { color: "#6b7280" };
+  if (v > 0) return { color: "#166534", fontWeight: 800 };
+  if (v < 0) return { color: "#991b1b", fontWeight: 800 };
+  return { color: "#6b7280", fontWeight: 700 };
 };
 
 const alertBannerStyle = {
@@ -221,8 +221,6 @@ export default function MetalsPage() {
       .sort((a, b) => a.tenorMonths - b.tenorMonths);
   }, [curvesRaw]);
 
-  /* ---------- summary values ---------- */
-
   const goldSpot = rows.find((r) => r.tenorMonths === 0)?.goldToday;
   const silverSpot = rows.find((r) => r.tenorMonths === 0)?.silverToday;
 
@@ -249,7 +247,7 @@ export default function MetalsPage() {
   const goldSpreadPct = spreadPctOfSpot(goldSpread, goldSpot);
   const silverSpreadPct = spreadPctOfSpot(silverSpread, silverSpot);
 
-  const BACKWARDATION_ALERT_PCT = -0.0025; // -0.25%
+  const BACKWARDATION_ALERT_PCT = -0.0025;
 
   const goldMajorBack =
     goldSpreadPct != null && goldSpreadPct <= BACKWARDATION_ALERT_PCT;
@@ -294,8 +292,6 @@ export default function MetalsPage() {
 
   const divText = divergenceText();
 
-  /* ---------- curve shape ---------- */
-
   const curveRows = rows.map((r) => ({
     ...r,
     goldPct:
@@ -327,8 +323,6 @@ export default function MetalsPage() {
 
   const goldAbsDomain = tightDomain(rows.map((r) => r.goldToday));
   const silverAbsDomain = tightDomain(rows.map((r) => r.silverToday));
-
-  /* ---------- tenor table + correlation + daily change ---------- */
 
   const tenorMap = new Map();
   for (const t of trackedTenorList) tenorMap.set(t, { tenorMonths: t });
@@ -384,27 +378,15 @@ export default function MetalsPage() {
   );
   const corrText = curveCorr == null ? "--" : Number(curveCorr).toFixed(2);
 
-  /* ---------- data quality ---------- */
-
   const missingTenors = trackedTenorList.filter((t) => {
     const r = tenorMap.get(t);
     return !(r?.goldToday != null && r?.silverToday != null);
   });
   const qualityStatus = missingTenors.length === 0 ? "Complete" : "Missing Tenors";
 
-  // Signal Confidence (simple + stable)
   const signalConfidence =
     missingTenors.length === 0 ? "High" : missingTenors.length <= 2 ? "Medium" : "Low";
 
-  /* ---------- decision read ---------- */
-
-  const divergence =
-    goldRegime !== "Unknown" &&
-    silverRegime !== "Unknown" &&
-    goldRegime !== silverRegime;
-
-  // Action Bias (executive-grade, no fluff)
-  // Priority: Divergence Alert > Major Backwardation > Minor Backwardation > Both Contango > Neutral
   const actionBias = divergenceMajor
     ? "Caution / Neutral (conflict)"
     : anyMajorBackwardation
@@ -415,16 +397,19 @@ export default function MetalsPage() {
     ? "Risk-On"
     : "Neutral";
 
+  const divergenceLine =
+    goldRegime !== "Unknown" &&
+    silverRegime !== "Unknown" &&
+    goldRegime !== silverRegime
+      ? `Divergence: Gold is ${goldRegime}, Silver is ${silverRegime}. Treat this as a signal conflict.`
+      : `Aligned: Gold and Silver are both ${goldRegime}.`;
+
   const tighterMetal =
     goldSpread != null && silverSpread != null
       ? goldSpread < silverSpread
         ? "Gold"
         : "Silver"
       : null;
-
-  const divergenceLine = divergence
-    ? `Divergence: Gold is ${goldRegime}, Silver is ${silverRegime}. Treat this as a signal conflict.`
-    : `Aligned: Gold and Silver are both ${goldRegime}.`;
 
   const interpretationLine =
     tighterMetal == null
@@ -445,9 +430,7 @@ export default function MetalsPage() {
     silverMinorBack ? `Silver 12m−0m = ${fmtAbs(silverSpread)} (${fmtPct(silverSpreadPct)})` : ""
   }`;
 
-  /* ---------- biggest daily move (NO HOOKS) ---------- */
-
-  let biggestMove = null; // {metric, tenorMonths, valueAbs, valueSigned}
+  let biggestMove = null;
   for (const r of tenorTable) {
     const candidates = [
       { metric: "Gold Δ", value: r.goldChg },
@@ -486,8 +469,6 @@ export default function MetalsPage() {
 
   const todaysTake = `Today’s Take: Gold ${goldRegime} | Silver ${silverRegime} | ${divergenceLabel} | ${biggestMoveText}`;
 
-  /* ================= render ================= */
-
   const loading = data == null;
 
   return (
@@ -498,60 +479,35 @@ export default function MetalsPage() {
 
       <h1 style={{ marginBottom: 8 }}>Gold & Silver — Term Structure</h1>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          gap: 12,
-          marginBottom: 16,
-        }}
-      >
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
         <div style={cardStyle}>
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Gold</div>
-          <div>
-            Spot: <b>{fmtAbs(goldSpot)}</b>
-          </div>
+          <div>Spot: <b>{fmtAbs(goldSpot)}</b></div>
           <div style={{ marginTop: 6 }}>
             <span style={chipStyleForRegime(goldRegime)}>{goldRegime}</span>
             <span style={{ marginLeft: 10 }}>
-              12m − 0m:{" "}
-              <span style={spreadTextStyle(goldSpread)}>{fmtAbs(goldSpread)}</span>
-              {goldSpreadPct != null && (
-                <span style={{ marginLeft: 8, opacity: 0.75 }}>
-                  ({fmtPct(goldSpreadPct)})
-                </span>
-              )}
+              12m − 0m: <span style={spreadTextStyle(goldSpread)}>{fmtAbs(goldSpread)}</span>
+              {goldSpreadPct != null && <span style={{ marginLeft: 8, opacity: 0.75 }}>({fmtPct(goldSpreadPct)})</span>}
             </span>
           </div>
         </div>
 
         <div style={cardStyle}>
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Silver</div>
-          <div>
-            Spot: <b>{fmtAbs(silverSpot)}</b>
-          </div>
+          <div>Spot: <b>{fmtAbs(silverSpot)}</b></div>
           <div style={{ marginTop: 6 }}>
             <span style={chipStyleForRegime(silverRegime)}>{silverRegime}</span>
             <span style={{ marginLeft: 10 }}>
-              12m − 0m:{" "}
-              <span style={spreadTextStyle(silverSpread)}>{fmtAbs(silverSpread)}</span>
-              {silverSpreadPct != null && (
-                <span style={{ marginLeft: 8, opacity: 0.75 }}>
-                  ({fmtPct(silverSpreadPct)})
-                </span>
-              )}
+              12m − 0m: <span style={spreadTextStyle(silverSpread)}>{fmtAbs(silverSpread)}</span>
+              {silverSpreadPct != null && <span style={{ marginLeft: 8, opacity: 0.75 }}>({fmtPct(silverSpreadPct)})</span>}
             </span>
           </div>
         </div>
 
         <div style={cardStyle}>
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Gold vs Silver</div>
-          <div>
-            Curve Correlation: <b>{corrText}</b>
-          </div>
-          <div style={{ marginTop: 6, fontSize: 12, opacity: 0.8 }}>
-            Negative spread = backwardation.
-          </div>
+          <div>Curve Correlation: <b>{corrText}</b></div>
+          <div style={{ marginTop: 6, fontSize: 12, opacity: 0.8 }}>Negative spread = backwardation.</div>
         </div>
       </div>
 
@@ -587,54 +543,35 @@ export default function MetalsPage() {
         <div style={{ fontWeight: 800, marginBottom: 8 }}>Curve Shape (% vs Spot)</div>
         <div style={{ height: 320 }}>
           <ResponsiveContainer>
-            <LineChart
-              data={curveRows}
-              margin={{ top: 10, right: 16, left: 36, bottom: 10 }}
-            >
+            <LineChart data={curveRows} margin={{ top: 10, right: 16, left: 36, bottom: 10 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="tenorMonths" />
-              <YAxis
-                width={80}
-                domain={pctDomain}
-                tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
-              />
+              <YAxis width={80} domain={pctDomain} tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} />
               <Tooltip formatter={fmtPct} />
               <Legend />
 
               {/* TODAY = bold/solid */}
-              <Line
-                name="Gold % Today"
-                dataKey="goldPct"
-                stroke="#111827"
-                strokeWidth={3}
-                dot={false}
-              />
-              <Line
-                name="Silver % Today"
-                dataKey="silverPct"
-                stroke="#2563eb"
-                strokeWidth={3}
-                dot={false}
-              />
+              <Line name="Gold % Today" dataKey="goldPct" stroke="#111827" strokeWidth={3} dot={false} />
+              <Line name="Silver % Today" dataKey="silverPct" stroke="#2563eb" strokeWidth={3} dot={false} />
 
-              {/* PRIOR = clearly dotted + slightly faded */}
+              {/* PRIOR = dashed + visible markers (easy to follow) */}
               <Line
                 name="Gold % Prior"
                 dataKey="goldPctPrior"
-                stroke="#9ca3af"
-                strokeWidth={2}
-                strokeDasharray="2 6"
-                strokeOpacity={0.75}
-                dot={false}
+                stroke="#6b7280"
+                strokeWidth={2.5}
+                strokeDasharray="10 6"
+                dot={{ r: 3 }}
+                activeDot={{ r: 5 }}
               />
               <Line
                 name="Silver % Prior"
                 dataKey="silverPctPrior"
-                stroke="#60a5fa"
-                strokeWidth={2}
-                strokeDasharray="2 6"
-                strokeOpacity={0.70}
-                dot={false}
+                stroke="#3b82f6"
+                strokeWidth={2.5}
+                strokeDasharray="10 6"
+                dot={{ r: 3 }}
+                activeDot={{ r: 5 }}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -696,13 +633,10 @@ export default function MetalsPage() {
               {tenorTable.map((r) => (
                 <tr key={r.tenorMonths}>
                   <td style={thtd}>{r.tenorMonths === 0 ? "Spot" : `${r.tenorMonths}m`}</td>
-
                   <td style={thtd}>{fmtAbs(r.goldToday)}</td>
                   <td style={{ ...thtd, ...deltaTextStyle(r.goldChg) }}>{fmtAbs(r.goldChg)}</td>
-
                   <td style={thtd}>{fmtAbs(r.silverToday)}</td>
                   <td style={{ ...thtd, ...deltaTextStyle(r.silverChg) }}>{fmtAbs(r.silverChg)}</td>
-
                   <td style={thtd}>{fmtRatio(r.ratioToday)}</td>
                   <td style={{ ...thtd, ...deltaTextStyle(r.ratioChg) }}>{fmtRatio(r.ratioChg)}</td>
                 </tr>
@@ -714,38 +648,11 @@ export default function MetalsPage() {
         <div style={{ display: "grid", gap: 16 }}>
           <div style={cardStyle}>
             <div style={{ fontWeight: 800, marginBottom: 10 }}>Decision Read</div>
-
-            {/* NEW: Action Bias + Signal Confidence */}
             <div style={{ fontSize: 13, marginBottom: 6 }}>
               <b>Action Bias:</b> {actionBias}
             </div>
             <div style={{ fontSize: 13, marginBottom: 10 }}>
               <b>Signal Confidence:</b> {signalConfidence}
-            </div>
-
-            {anyMajorBackwardation && (
-              <div style={{ marginBottom: 10, fontSize: 13, fontWeight: 900, color: "#991b1b" }}>
-                {majorAlertLine}
-              </div>
-            )}
-
-            {anyMinorBackwardation && (
-              <div style={{ marginBottom: 10, fontSize: 13, fontWeight: 900, color: "#92400e" }}>
-                {minorWatchLine}
-              </div>
-            )}
-
-            {(divergenceMajor || divergenceMinor) && divText && (
-              <div style={{ marginBottom: 10, fontSize: 13, fontWeight: 900 }}>
-                {divText}
-              </div>
-            )}
-
-            <div style={{ marginBottom: 10 }}>
-              Gold: <span style={chipStyleForRegime(goldRegime)}>{goldRegime}</span>
-              <span style={{ marginLeft: 10 }}>
-                Silver: <span style={chipStyleForRegime(silverRegime)}>{silverRegime}</span>
-              </span>
             </div>
 
             <div style={{ fontSize: 13, lineHeight: 1.4, marginBottom: 8 }}>{divergenceLine}</div>
