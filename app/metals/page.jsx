@@ -190,7 +190,6 @@ export default function MetalsPage() {
   const trackedTenorList = [0, 1, 2, 3, 4, 5, 12];
   const trackedTenors = new Set(trackedTenorList);
 
-  // Always define curvesRaw safely (so renders never change structure)
   const curvesRaw = Array.isArray(data?.curves)
     ? data.curves
     : Array.isArray(data)
@@ -481,10 +480,19 @@ export default function MetalsPage() {
 
       <h1 style={{ marginBottom: 8 }}>Gold & Silver — Term Structure</h1>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr",
+          gap: 12,
+          marginBottom: 16,
+        }}
+      >
         <div style={cardStyle}>
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Gold</div>
-          <div>Spot: <b>{fmtAbs(goldSpot)}</b></div>
+          <div>
+            Spot: <b>{fmtAbs(goldSpot)}</b>
+          </div>
           <div style={{ marginTop: 6 }}>
             <span style={chipStyleForRegime(goldRegime)}>{goldRegime}</span>
             <span style={{ marginLeft: 10 }}>
@@ -501,7 +509,9 @@ export default function MetalsPage() {
 
         <div style={cardStyle}>
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Silver</div>
-          <div>Spot: <b>{fmtAbs(silverSpot)}</b></div>
+          <div>
+            Spot: <b>{fmtAbs(silverSpot)}</b>
+          </div>
           <div style={{ marginTop: 6 }}>
             <span style={chipStyleForRegime(silverRegime)}>{silverRegime}</span>
             <span style={{ marginLeft: 10 }}>
@@ -518,7 +528,9 @@ export default function MetalsPage() {
 
         <div style={cardStyle}>
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Gold vs Silver</div>
-          <div>Curve Correlation: <b>{corrText}</b></div>
+          <div>
+            Curve Correlation: <b>{corrText}</b>
+          </div>
           <div style={{ marginTop: 6, fontSize: 12, opacity: 0.8 }}>
             Negative spread = backwardation.
           </div>
@@ -557,16 +569,55 @@ export default function MetalsPage() {
         <div style={{ fontWeight: 800, marginBottom: 8 }}>Curve Shape (% vs Spot)</div>
         <div style={{ height: 320 }}>
           <ResponsiveContainer>
-            <LineChart data={curveRows} margin={{ top: 10, right: 16, left: 36, bottom: 10 }}>
+            <LineChart
+              data={curveRows}
+              margin={{ top: 10, right: 16, left: 36, bottom: 10 }}
+            >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="tenorMonths" />
-              <YAxis width={80} domain={pctDomain} tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} />
+              <YAxis
+                width={80}
+                domain={pctDomain}
+                tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
+              />
               <Tooltip formatter={fmtPct} />
               <Legend />
-              <Line name="Gold % Today" dataKey="goldPct" stroke="#111827" strokeWidth={3} dot={false} />
-              <Line name="Silver % Today" dataKey="silverPct" stroke="#2563eb" strokeWidth={3} dot={false} />
-              <Line name="Gold % Prior" dataKey="goldPctPrior" stroke="#9ca3af" strokeWidth={2} strokeDasharray="2 6" strokeOpacity={0.75} dot={false} />
-<Line name="Silver % Prior" dataKey="silverPctPrior" stroke="#60a5fa" strokeWidth={2} strokeDasharray="2 6" strokeOpacity={0.70} dot={false} />
+
+              {/* TODAY = bold/solid */}
+              <Line
+                name="Gold % Today"
+                dataKey="goldPct"
+                stroke="#111827"
+                strokeWidth={3}
+                dot={false}
+              />
+              <Line
+                name="Silver % Today"
+                dataKey="silverPct"
+                stroke="#2563eb"
+                strokeWidth={3}
+                dot={false}
+              />
+
+              {/* PRIOR = clearly dotted + slightly faded (easier to separate) */}
+              <Line
+                name="Gold % Prior"
+                dataKey="goldPctPrior"
+                stroke="#9ca3af"
+                strokeWidth={2}
+                strokeDasharray="2 6"
+                strokeOpacity={0.75}
+                dot={false}
+              />
+              <Line
+                name="Silver % Prior"
+                dataKey="silverPctPrior"
+                stroke="#60a5fa"
+                strokeWidth={2}
+                strokeDasharray="2 6"
+                strokeOpacity={0.70}
+                dot={false}
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -627,10 +678,13 @@ export default function MetalsPage() {
               {tenorTable.map((r) => (
                 <tr key={r.tenorMonths}>
                   <td style={thtd}>{r.tenorMonths === 0 ? "Spot" : `${r.tenorMonths}m`}</td>
+
                   <td style={thtd}>{fmtAbs(r.goldToday)}</td>
                   <td style={{ ...thtd, ...deltaTextStyle(r.goldChg) }}>{fmtAbs(r.goldChg)}</td>
+
                   <td style={thtd}>{fmtAbs(r.silverToday)}</td>
                   <td style={{ ...thtd, ...deltaTextStyle(r.silverChg) }}>{fmtAbs(r.silverChg)}</td>
+
                   <td style={thtd}>{fmtRatio(r.ratioToday)}</td>
                   <td style={{ ...thtd, ...deltaTextStyle(r.ratioChg) }}>{fmtRatio(r.ratioChg)}</td>
                 </tr>
