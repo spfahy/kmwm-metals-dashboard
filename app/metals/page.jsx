@@ -12,7 +12,7 @@ import {
   Legend,
 } from "recharts";
 
-/* ------------------ helpers ------------------ */
+/* ================= helpers ================= */
 
 const toNumOrNull = (v) => {
   const n = Number(v);
@@ -21,6 +21,7 @@ const toNumOrNull = (v) => {
 
 const fmtPct = (v) =>
   v == null ? "--" : `${(v * 100).toFixed(1)}%`;
+
 const fmtAbs = (v) =>
   v == null
     ? "--"
@@ -39,7 +40,7 @@ const tightDomain = (values) => {
   return [lo - pad, hi + pad];
 };
 
-/* ------------------ page ------------------ */
+/* ================= page ================= */
 
 export default function MetalsPage() {
   const [data, setData] = useState(null);
@@ -50,7 +51,7 @@ export default function MetalsPage() {
       .then(setData);
   }, []);
 
-  /* -------- normalize rows -------- */
+  /* ---------- normalize rows ---------- */
 
   const curvesRaw = Array.isArray(data?.curves)
     ? data.curves
@@ -72,15 +73,12 @@ export default function MetalsPage() {
 
         return {
           tenorMonths: tenor,
-
           goldToday:
             toNumOrNull(r.goldToday) ??
             (metal.includes("gold") ? price : null),
-
           silverToday:
             toNumOrNull(r.silverToday) ??
             (metal.includes("silver") ? price : null),
-
           goldPrior: toNumOrNull(r.goldPrior),
           silverPrior: toNumOrNull(r.silverPrior),
         };
@@ -89,10 +87,22 @@ export default function MetalsPage() {
       .sort((a, b) => a.tenorMonths - b.tenorMonths);
   }, [curvesRaw]);
 
-  /* -------- derived -------- */
+  if (!data) return null;
+
+  /* ---------- summary values ---------- */
 
   const goldSpot = rows.find((r) => r.tenorMonths === 0)?.goldToday;
   const silverSpot = rows.find((r) => r.tenorMonths === 0)?.silverToday;
+
+  const gold12m = rows.find((r) => r.tenorMonths === 12)?.goldToday;
+  const silver12m = rows.find((r) => r.tenorMonths === 12)?.silverToday;
+
+  const goldSpread =
+    goldSpot != null && gold12m != null ? gold12m - goldSpot : null;
+  const silverSpread =
+    silverSpot != null && silver12m != null ? silver12m - silverSpot : null;
+
+  /* ---------- curve shape ---------- */
 
   const curveRows = rows.map((r) => ({
     ...r,
@@ -114,12 +124,6 @@ export default function MetalsPage() {
         : null,
   }));
 
-  const goldAbsDomain = tightDomain(
-    rows.map((r) => r.goldToday)
-  );
-  const silverAbsDomain = tightDomain(
-    rows.map((r) => r.silverToday)
-  );
   const pctDomain = tightDomain(
     curveRows.flatMap((r) => [
       r.goldPct,
@@ -129,15 +133,45 @@ export default function MetalsPage() {
     ])
   );
 
-  if (!data) return null;
+  const goldAbsDomain = tightDomain(rows.map((r) => r.goldToday));
+  const silverAbsDomain = tightDomain(rows.map((r) => r.silverToday));
 
-  /* ------------------ render ------------------ */
+  /* ================= render ================= */
 
   return (
     <div style={{ padding: 16 }}>
 
-      {/* ================= Curve Shape ================= */}
+      {/* ================= Header ================= */}
+      <h1>Gold & Silver — Term Structure</h1>
 
+      {/* ================= Top Cards ================= */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr",
+          gap: 12,
+          marginBottom: 16,
+        }}
+      >
+        <div style={{ border: "1px solid #ddd", padding: 12 }}>
+          <b>Gold</b>
+          <div>Spot: {fmtAbs(goldSpot)}</div>
+          <div>12m − 0m: {fmtAbs(goldSpread)}</div>
+        </div>
+
+        <div style={{ border: "1px solid #ddd", padding: 12 }}>
+          <b>Silver</b>
+          <div>Spot: {fmtAbs(silverSpot)}</div>
+          <div>12m − 0m: {fmtAbs(silverSpread)}</div>
+        </div>
+
+        <div style={{ border: "1px solid #ddd", padding: 12 }}>
+          <b>Gold vs Silver</b>
+          <div>Negative spread = backwardation</div>
+        </div>
+      </div>
+
+      {/* ================= Curve Shape ================= */}
       <h2>Curve Shape (% vs Spot)</h2>
 
       <div style={{ height: 320 }}>
@@ -156,123 +190,45 @@ export default function MetalsPage() {
             <Tooltip formatter={fmtPct} />
             <Legend />
 
-            <Line
-              name="Gold % Today"
-              dataKey="goldPct"
-              stroke="#111827"
-              strokeWidth={3}
-              dot={false}
-            />
-            <Line
-              name="Gold % Prior"
-              dataKey="goldPctPrior"
-              stroke="#9ca3af"
-              strokeWidth={2}
-              strokeDasharray="8 5"
-              dot={false}
-            />
-            <Line
-              name="Silver % Today"
-              dataKey="silverPct"
-              stroke="#2563eb"
-              strokeWidth={3}
-              dot={false}
-            />
-            <Line
-              name="Silver % Prior"
-              dataKey="silverPctPrior"
-              stroke="#93c5fd"
-              strokeWidth={2}
-              strokeDasharray="8 5"
-              dot={false}
-            />
+            <Line name="Gold % Today" dataKey="goldPct" stroke="#111827" strokeWidth={3} dot={false} />
+            <Line name="Gold % Prior" dataKey="goldPctPrior" stroke="#9ca3af" strokeWidth={2} strokeDasharray="8 5" dot={false} />
+            <Line name="Silver % Today" dataKey="silverPct" stroke="#2563eb" strokeWidth={3} dot={false} />
+            <Line name="Silver % Prior" dataKey="silverPctPrior" stroke="#93c5fd" strokeWidth={2} strokeDasharray="8 5" dot={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
       {/* ================= Absolute Charts ================= */}
-
-      <div
-        style={{
-          marginTop: 16,
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 16,
-        }}
-      >
-        {/* -------- Gold Absolute -------- */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 }}>
         <div style={{ border: "1px solid #ddd", padding: 12 }}>
           <h3>Gold (Absolute)</h3>
           <div style={{ height: 260 }}>
             <ResponsiveContainer>
-              <LineChart
-                data={rows}
-                margin={{ top: 10, right: 16, left: 36, bottom: 10 }}
-              >
+              <LineChart data={rows} margin={{ top: 10, right: 16, left: 36, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="tenorMonths" />
-                <YAxis
-  width={80}
-  domain={goldAbsDomain}
-  tickFormatter={fmtAbs}
-/>
-
-                <Tooltip />
+                <YAxis width={80} domain={goldAbsDomain} tickFormatter={fmtAbs} />
+                <Tooltip formatter={fmtAbs} />
                 <Legend />
-                <Line
-                  name="Gold Today"
-                  dataKey="goldToday"
-                  stroke="#111827"
-                  strokeWidth={3}
-                  dot={false}
-                />
-                <Line
-                  name="Gold Prior"
-                  dataKey="goldPrior"
-                  stroke="#9ca3af"
-                  strokeWidth={2}
-                  strokeDasharray="8 5"
-                  dot={false}
-                />
+                <Line name="Gold Today" dataKey="goldToday" stroke="#111827" strokeWidth={3} dot={false} />
+                <Line name="Gold Prior" dataKey="goldPrior" stroke="#9ca3af" strokeWidth={2} strokeDasharray="8 5" dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* -------- Silver Absolute -------- */}
         <div style={{ border: "1px solid #ddd", padding: 12 }}>
           <h3>Silver (Absolute)</h3>
           <div style={{ height: 260 }}>
             <ResponsiveContainer>
-              <LineChart
-                data={rows}
-                margin={{ top: 10, right: 16, left: 36, bottom: 10 }}
-              >
+              <LineChart data={rows} margin={{ top: 10, right: 16, left: 36, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="tenorMonths" />
-                <YAxis
-  width={80}
-  domain={silverAbsDomain}
-  tickFormatter={fmtAbs}
-/>
-
-                <Tooltip />
+                <YAxis width={80} domain={silverAbsDomain} tickFormatter={fmtAbs} />
+                <Tooltip formatter={fmtAbs} />
                 <Legend />
-                <Line
-                  name="Silver Today"
-                  dataKey="silverToday"
-                  stroke="#2563eb"
-                  strokeWidth={3}
-                  dot={false}
-                />
-                <Line
-                  name="Silver Prior"
-                  dataKey="silverPrior"
-                  stroke="#93c5fd"
-                  strokeWidth={2}
-                  strokeDasharray="8 5"
-                  dot={false}
-                />
+                <Line name="Silver Today" dataKey="silverToday" stroke="#2563eb" strokeWidth={3} dot={false} />
+                <Line name="Silver Prior" dataKey="silverPrior" stroke="#93c5fd" strokeWidth={2} strokeDasharray="8 5" dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
