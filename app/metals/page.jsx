@@ -118,14 +118,23 @@ const chipStyleForRegime = (regime) => {
 const spreadTextStyle = (spread) => {
   if (!Number.isFinite(spread)) return {};
   return spread < 0
-    ? { color: "#991b1b", fontWeight: 800 } // red
-    : { color: "#111827", fontWeight: 800 }; // normal dark
+    ? { color: "#991b1b", fontWeight: 800 } // red if negative
+    : { color: "#111827", fontWeight: 800 };
 };
 
 const alertBannerStyle = {
   border: "1px solid #fecaca",
   background: "#fee2e2",
   color: "#7f1d1d",
+  borderRadius: 14,
+  padding: 12,
+  marginBottom: 16,
+};
+
+const watchBannerStyle = {
+  border: "1px solid #fde68a",
+  background: "#fef3c7",
+  color: "#92400e",
   borderRadius: 14,
   padding: 12,
   marginBottom: 16,
@@ -199,18 +208,29 @@ export default function MetalsPage() {
   const goldRegime = regimeForSpread(goldSpread);
   const silverRegime = regimeForSpread(silverSpread);
 
-  const spreadStrengthPct = (s, spot) => {
-    if (s == null || spot == null || spot === 0) return null;
-    return (s / spot) * 100;
+  // spread as % of spot (for thresholding)
+  const spreadPctOfSpot = (spread, spot) => {
+    if (!Number.isFinite(spread) || !Number.isFinite(spot) || spot === 0) return null;
+    return spread / spot; // decimal (e.g., -0.0025 = -0.25%)
   };
 
-  const goldStrength = spreadStrengthPct(goldSpread, goldSpot);
-  const silverStrength = spreadStrengthPct(silverSpread, silverSpot);
+  const goldSpreadPct = spreadPctOfSpot(goldSpread, goldSpot);
+  const silverSpreadPct = spreadPctOfSpot(silverSpread, silverSpot);
 
-  // ===== Backwardation Alert flags =====
-  const goldBackwardated = Number.isFinite(goldSpread) && goldSpread < 0;
-  const silverBackwardated = Number.isFinite(silverSpread) && silverSpread < 0;
-  const anyBackwardation = goldBackwardated || silverBackwardated;
+  // ===== Threshold bands =====
+  // Major backwardation alert when <= -0.25% of spot
+  const BACKWARDATION_ALERT_PCT = -0.0025;
+
+  const goldMajorBack = goldSpreadPct != null && goldSpreadPct <= BACKWARDATION_ALERT_PCT;
+  const silverMajorBack = silverSpreadPct != null && silverSpreadPct <= BACKWARDATION_ALERT_PCT;
+
+  const goldMinorBack =
+    goldSpreadPct != null && goldSpreadPct < 0 && goldSpreadPct > BACKWARDATION_ALERT_PCT;
+  const silverMinorBack =
+    silverSpreadPct != null && silverSpreadPct < 0 && silverSpreadPct > BACKWARDATION_ALERT_PCT;
+
+  const anyMajorBackwardation = goldMajorBack || silverMajorBack;
+  const anyMinorBackwardation = !anyMajorBackwardation && (goldMinorBack || silverMinorBack);
 
   /* ---------- curve shape ---------- */
 
@@ -310,13 +330,17 @@ export default function MetalsPage() {
       ? "Interpretation: Gold curve is tighter than Silver (more monetary/defensive bid)."
       : "Interpretation: Silver curve is tighter than Gold (more industrial/risk-on bid).";
 
-  const backwardationAlertLine = !anyBackwardation
-    ? null
-    : `ALERT: Backwardation detected — ${
-        goldBackwardated ? `Gold 12m−0m = ${fmtAbs(goldSpread)}` : ""
-      }${goldBackwardated && silverBackwardated ? " | " : ""}${
-        silverBackwardated ? `Silver 12m−0m = ${fmtAbs(silverSpread)}` : ""
-      }`;
+  const majorAlertLine = `ALERT (≤ -0.25% of spot): ${
+    goldMajorBack ? `Gold 12m−0m = ${fmtAbs(goldSpread)} (${fmtPct(goldSpreadPct)})` : ""
+  }${goldMajorBack && silverMajorBack ? " | " : ""}${
+    silverMajorBack ? `Silver 12m−0m = ${fmtAbs(silverSpread)} (${fmtPct(silverSpreadPct)})` : ""
+  }`;
+
+  const minorWatchLine = `WATCH (small backwardation): ${
+    goldMinorBack ? `Gold 12m−0m = ${fmtAbs(goldSpread)} (${fmtPct(goldSpreadPct)})` : ""
+  }${goldMinorBack && silverMinorBack ? " | " : ""}${
+    silverMinorBack ? `Silver 12m−0m = ${fmtAbs(silverSpread)} (${fmtPct(silverSpreadPct)})` : ""
+  }`;
 
   /* ================= render ================= */
 
@@ -343,9 +367,9 @@ export default function MetalsPage() {
             <span style={{ marginLeft: 10 }}>
               12m − 0m:{" "}
               <span style={spreadTextStyle(goldSpread)}>{fmtAbs(goldSpread)}</span>
-              {goldStrength != null && (
+              {goldSpreadPct != null && (
                 <span style={{ marginLeft: 8, opacity: 0.75 }}>
-                  ({goldStrength.toFixed(2)}%)
+                  ({fmtPct(goldSpreadPct)})
                 </span>
               )}
             </span>
@@ -362,9 +386,9 @@ export default function MetalsPage() {
             <span style={{ marginLeft: 10 }}>
               12m − 0m:{" "}
               <span style={spreadTextStyle(silverSpread)}>{fmtAbs(silverSpread)}</span>
-              {silverStrength != null && (
+              {silverSpreadPct != null && (
                 <span style={{ marginLeft: 8, opacity: 0.75 }}>
-                  ({silverStrength.toFixed(2)}%)
+                  ({fmtPct(silverSpreadPct)})
                 </span>
               )}
             </span>
@@ -382,13 +406,18 @@ export default function MetalsPage() {
         </div>
       </div>
 
-      {/* ================= Backwardation Alert Banner ================= */}
-      {anyBackwardation && (
+      {/* ================= Thresholded Backwardation Banner ================= */}
+      {anyMajorBackwardation && (
         <div style={alertBannerStyle}>
           <div style={{ fontWeight: 900, marginBottom: 6 }}>Backwardation Alert</div>
-          <div style={{ fontSize: 13, lineHeight: 1.4 }}>
-            {backwardationAlertLine}
-          </div>
+          <div style={{ fontSize: 13, lineHeight: 1.4 }}>{majorAlertLine}</div>
+        </div>
+      )}
+
+      {anyMinorBackwardation && (
+        <div style={watchBannerStyle}>
+          <div style={{ fontWeight: 900, marginBottom: 6 }}>Backwardation Watch</div>
+          <div style={{ fontSize: 13, lineHeight: 1.4 }}>{minorWatchLine}</div>
         </div>
       )}
 
@@ -482,9 +511,15 @@ export default function MetalsPage() {
           <div style={cardStyle}>
             <div style={{ fontWeight: 800, marginBottom: 10 }}>Decision Read</div>
 
-            {anyBackwardation && (
-              <div style={{ marginBottom: 10, fontSize: 13, fontWeight: 800, color: "#991b1b" }}>
-                {backwardationAlertLine}
+            {anyMajorBackwardation && (
+              <div style={{ marginBottom: 10, fontSize: 13, fontWeight: 900, color: "#991b1b" }}>
+                {majorAlertLine}
+              </div>
+            )}
+
+            {anyMinorBackwardation && (
+              <div style={{ marginBottom: 10, fontSize: 13, fontWeight: 900, color: "#92400e" }}>
+                {minorWatchLine}
               </div>
             )}
 
