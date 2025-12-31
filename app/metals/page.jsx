@@ -140,6 +140,24 @@ const watchBannerStyle = {
   marginBottom: 16,
 };
 
+const divergenceAlertStyle = {
+  border: "1px solid #fca5a5",
+  background: "#fee2e2",
+  color: "#7f1d1d",
+  borderRadius: 14,
+  padding: 12,
+  marginBottom: 16,
+};
+
+const divergenceWatchStyle = {
+  border: "1px solid #fde68a",
+  background: "#fef3c7",
+  color: "#92400e",
+  borderRadius: 14,
+  padding: 12,
+  marginBottom: 16,
+};
+
 /* ================= page ================= */
 
 export default function MetalsPage() {
@@ -218,8 +236,7 @@ export default function MetalsPage() {
   const silverSpreadPct = spreadPctOfSpot(silverSpread, silverSpot);
 
   // ===== Threshold bands =====
-  // Major backwardation alert when <= -0.25% of spot
-  const BACKWARDATION_ALERT_PCT = -0.0025;
+  const BACKWARDATION_ALERT_PCT = -0.0025; // -0.25%
 
   const goldMajorBack = goldSpreadPct != null && goldSpreadPct <= BACKWARDATION_ALERT_PCT;
   const silverMajorBack = silverSpreadPct != null && silverSpreadPct <= BACKWARDATION_ALERT_PCT;
@@ -231,6 +248,29 @@ export default function MetalsPage() {
 
   const anyMajorBackwardation = goldMajorBack || silverMajorBack;
   const anyMinorBackwardation = !anyMajorBackwardation && (goldMinorBack || silverMinorBack);
+
+  // ===== Divergence detection =====
+  const divergenceMajor =
+    (goldMajorBack && !silverMajorBack) || (!goldMajorBack && silverMajorBack);
+
+  const divergenceMinor =
+    !divergenceMajor &&
+    ((goldMinorBack && !(silverMinorBack || silverMajorBack)) ||
+      (silverMinorBack && !(goldMinorBack || goldMajorBack)) ||
+      ((goldSpreadPct != null && goldSpreadPct < 0) !== (silverSpreadPct != null && silverSpreadPct < 0)));
+
+  const divergenceText = () => {
+    const g = goldSpreadPct == null ? "--" : fmtPct(goldSpreadPct);
+    const s = silverSpreadPct == null ? "--" : fmtPct(silverSpreadPct);
+
+    if (divergenceMajor) {
+      return `DIVERGENCE ALERT: One metal is in MAJOR backwardation (≤ -0.25% of spot) while the other is not. Gold: ${g} | Silver: ${s}`;
+    }
+    if (divergenceMinor) {
+      return `DIVERGENCE WATCH: Curves disagree (signal conflict). Gold: ${g} | Silver: ${s}`;
+    }
+    return null;
+  };
 
   /* ---------- curve shape ---------- */
 
@@ -342,6 +382,8 @@ export default function MetalsPage() {
     silverMinorBack ? `Silver 12m−0m = ${fmtAbs(silverSpread)} (${fmtPct(silverSpreadPct)})` : ""
   }`;
 
+  const divText = divergenceText();
+
   /* ================= render ================= */
 
   return (
@@ -405,6 +447,21 @@ export default function MetalsPage() {
           </div>
         </div>
       </div>
+
+      {/* ================= Divergence Banner (NEW) ================= */}
+      {divergenceMajor && divText && (
+        <div style={divergenceAlertStyle}>
+          <div style={{ fontWeight: 900, marginBottom: 6 }}>Divergence Alert</div>
+          <div style={{ fontSize: 13, lineHeight: 1.4 }}>{divText}</div>
+        </div>
+      )}
+
+      {divergenceMinor && divText && (
+        <div style={divergenceWatchStyle}>
+          <div style={{ fontWeight: 900, marginBottom: 6 }}>Divergence Watch</div>
+          <div style={{ fontSize: 13, lineHeight: 1.4 }}>{divText}</div>
+        </div>
+      )}
 
       {/* ================= Thresholded Backwardation Banner ================= */}
       {anyMajorBackwardation && (
@@ -510,6 +567,18 @@ export default function MetalsPage() {
         <div style={{ display: "grid", gap: 16 }}>
           <div style={cardStyle}>
             <div style={{ fontWeight: 800, marginBottom: 10 }}>Decision Read</div>
+
+            {divergenceMajor && divText && (
+              <div style={{ marginBottom: 10, fontSize: 13, fontWeight: 900, color: "#991b1b" }}>
+                {divText}
+              </div>
+            )}
+
+            {divergenceMinor && divText && (
+              <div style={{ marginBottom: 10, fontSize: 13, fontWeight: 900, color: "#92400e" }}>
+                {divText}
+              </div>
+            )}
 
             {anyMajorBackwardation && (
               <div style={{ marginBottom: 10, fontSize: 13, fontWeight: 900, color: "#991b1b" }}>
