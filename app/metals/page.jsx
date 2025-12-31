@@ -183,14 +183,14 @@ export default function MetalsPage() {
   useEffect(() => {
     fetch("/api/metals")
       .then((r) => r.json())
-      .then(setData);
+      .then(setData)
+      .catch(() => setData({ curves: [] }));
   }, []);
 
   const trackedTenorList = [0, 1, 2, 3, 4, 5, 12];
   const trackedTenors = new Set(trackedTenorList);
 
-  /* ---------- normalize rows ---------- */
-
+  // Always define curvesRaw safely (so renders never change structure)
   const curvesRaw = Array.isArray(data?.curves)
     ? data.curves
     : Array.isArray(data)
@@ -222,8 +222,6 @@ export default function MetalsPage() {
       .sort((a, b) => a.tenorMonths - b.tenorMonths);
   }, [curvesRaw]);
 
-  if (!data) return null;
-
   /* ---------- summary values ---------- */
 
   const goldSpot = rows.find((r) => r.tenorMonths === 0)?.goldToday;
@@ -243,30 +241,35 @@ export default function MetalsPage() {
   const goldRegime = regimeForSpread(goldSpread);
   const silverRegime = regimeForSpread(silverSpread);
 
-  // spread as % of spot (for thresholding)
   const spreadPctOfSpot = (spread, spot) => {
-    if (!Number.isFinite(spread) || !Number.isFinite(spot) || spot === 0) return null;
+    if (!Number.isFinite(spread) || !Number.isFinite(spot) || spot === 0)
+      return null;
     return spread / spot;
   };
 
   const goldSpreadPct = spreadPctOfSpot(goldSpread, goldSpot);
   const silverSpreadPct = spreadPctOfSpot(silverSpread, silverSpot);
 
-  // ===== Threshold bands =====
   const BACKWARDATION_ALERT_PCT = -0.0025; // -0.25%
 
-  const goldMajorBack = goldSpreadPct != null && goldSpreadPct <= BACKWARDATION_ALERT_PCT;
-  const silverMajorBack = silverSpreadPct != null && silverSpreadPct <= BACKWARDATION_ALERT_PCT;
+  const goldMajorBack =
+    goldSpreadPct != null && goldSpreadPct <= BACKWARDATION_ALERT_PCT;
+  const silverMajorBack =
+    silverSpreadPct != null && silverSpreadPct <= BACKWARDATION_ALERT_PCT;
 
   const goldMinorBack =
-    goldSpreadPct != null && goldSpreadPct < 0 && goldSpreadPct > BACKWARDATION_ALERT_PCT;
+    goldSpreadPct != null &&
+    goldSpreadPct < 0 &&
+    goldSpreadPct > BACKWARDATION_ALERT_PCT;
   const silverMinorBack =
-    silverSpreadPct != null && silverSpreadPct < 0 && silverSpreadPct > BACKWARDATION_ALERT_PCT;
+    silverSpreadPct != null &&
+    silverSpreadPct < 0 &&
+    silverSpreadPct > BACKWARDATION_ALERT_PCT;
 
   const anyMajorBackwardation = goldMajorBack || silverMajorBack;
-  const anyMinorBackwardation = !anyMajorBackwardation && (goldMinorBack || silverMinorBack);
+  const anyMinorBackwardation =
+    !anyMajorBackwardation && (goldMinorBack || silverMinorBack);
 
-  // ===== Divergence detection =====
   const divergenceMajor =
     (goldMajorBack && !silverMajorBack) || (!goldMajorBack && silverMajorBack);
 
@@ -274,7 +277,8 @@ export default function MetalsPage() {
     !divergenceMajor &&
     ((goldMinorBack && !(silverMinorBack || silverMajorBack)) ||
       (silverMinorBack && !(goldMinorBack || goldMajorBack)) ||
-      ((goldSpreadPct != null && goldSpreadPct < 0) !== (silverSpreadPct != null && silverSpreadPct < 0)));
+      ((goldSpreadPct != null && goldSpreadPct < 0) !==
+        (silverSpreadPct != null && silverSpreadPct < 0)));
 
   const divergenceText = () => {
     const g = goldSpreadPct == null ? "--" : fmtPct(goldSpreadPct);
@@ -288,6 +292,8 @@ export default function MetalsPage() {
     }
     return null;
   };
+
+  const divText = divergenceText();
 
   /* ---------- curve shape ---------- */
 
@@ -354,7 +360,9 @@ export default function MetalsPage() {
       r.goldToday != null && r.goldPrior != null ? r.goldToday - r.goldPrior : null;
 
     const silverChg =
-      r.silverToday != null && r.silverPrior != null ? r.silverToday - r.silverPrior : null;
+      r.silverToday != null && r.silverPrior != null
+        ? r.silverToday - r.silverPrior
+        : null;
 
     const ratioChg =
       ratioToday != null && ratioPrior != null ? ratioToday - ratioPrior : null;
@@ -373,7 +381,6 @@ export default function MetalsPage() {
     tenorTable.map((r) => r.goldToday),
     tenorTable.map((r) => r.silverToday)
   );
-
   const corrText = curveCorr == null ? "--" : Number(curveCorr).toFixed(2);
 
   /* ---------- data quality ---------- */
@@ -382,10 +389,9 @@ export default function MetalsPage() {
     const r = tenorMap.get(t);
     return !(r?.goldToday != null && r?.silverToday != null);
   });
-
   const qualityStatus = missingTenors.length === 0 ? "Complete" : "Missing Tenors";
 
-  /* ---------- decision panels ---------- */
+  /* ---------- decision read ---------- */
 
   const divergence =
     goldRegime !== "Unknown" &&
@@ -422,32 +428,28 @@ export default function MetalsPage() {
     silverMinorBack ? `Silver 12m−0m = ${fmtAbs(silverSpread)} (${fmtPct(silverSpreadPct)})` : ""
   }`;
 
-  const divText = divergenceText();
+  /* ---------- biggest daily move (NO HOOKS) ---------- */
 
-  // ===== Biggest daily move finder (Gold / Silver / Ratio) =====
-  const biggestMove = useMemo(() => {
-    let best = null; // {metric, tenorMonths, valueAbs, valueSigned}
-    for (const r of tenorTable) {
-      const candidates = [
-        { metric: "Gold Δ", value: r.goldChg },
-        { metric: "Silver Δ", value: r.silverChg },
-        { metric: "Ratio Δ", value: r.ratioChg },
-      ];
-      for (const c of candidates) {
-        if (!Number.isFinite(c.value)) continue;
-        const abs = Math.abs(c.value);
-        if (!best || abs > best.valueAbs) {
-          best = {
-            metric: c.metric,
-            tenorMonths: r.tenorMonths,
-            valueAbs: abs,
-            valueSigned: c.value,
-          };
-        }
+  let biggestMove = null; // {metric, tenorMonths, valueAbs, valueSigned}
+  for (const r of tenorTable) {
+    const candidates = [
+      { metric: "Gold Δ", value: r.goldChg },
+      { metric: "Silver Δ", value: r.silverChg },
+      { metric: "Ratio Δ", value: r.ratioChg },
+    ];
+    for (const c of candidates) {
+      if (!Number.isFinite(c.value)) continue;
+      const abs = Math.abs(c.value);
+      if (!biggestMove || abs > biggestMove.valueAbs) {
+        biggestMove = {
+          metric: c.metric,
+          tenorMonths: r.tenorMonths,
+          valueAbs: abs,
+          valueSigned: c.value,
+        };
       }
     }
-    return best;
-  }, [tenorTable]);
+  }
 
   const divergenceLabel = divergenceMajor
     ? "Divergence ALERT"
@@ -469,14 +471,16 @@ export default function MetalsPage() {
 
   /* ================= render ================= */
 
+  const loading = data == null;
+
   return (
     <div style={{ padding: 16 }}>
-      {/* ===== Executive Headline ===== */}
-      <div style={headlineStyle}>{todaysTake}</div>
+      <div style={headlineStyle}>
+        {loading ? "Today’s Take: loading…" : todaysTake}
+      </div>
 
       <h1 style={{ marginBottom: 8 }}>Gold & Silver — Term Structure</h1>
 
-      {/* ================= Top Cards ================= */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
         <div style={cardStyle}>
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Gold</div>
@@ -521,7 +525,6 @@ export default function MetalsPage() {
         </div>
       </div>
 
-      {/* ================= Divergence Banner ================= */}
       {divergenceMajor && divText && (
         <div style={divergenceAlertStyle}>
           <div style={{ fontWeight: 900, marginBottom: 6 }}>Divergence Alert</div>
@@ -536,7 +539,6 @@ export default function MetalsPage() {
         </div>
       )}
 
-      {/* ================= Backwardation Banner ================= */}
       {anyMajorBackwardation && (
         <div style={alertBannerStyle}>
           <div style={{ fontWeight: 900, marginBottom: 6 }}>Backwardation Alert</div>
@@ -551,7 +553,6 @@ export default function MetalsPage() {
         </div>
       )}
 
-      {/* ================= Curve Shape ================= */}
       <div style={cardStyle}>
         <div style={{ fontWeight: 800, marginBottom: 8 }}>Curve Shape (% vs Spot)</div>
         <div style={{ height: 320 }}>
@@ -571,7 +572,6 @@ export default function MetalsPage() {
         </div>
       </div>
 
-      {/* ================= Absolute Charts ================= */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 }}>
         <div style={cardStyle}>
           <div style={{ fontWeight: 800, marginBottom: 8 }}>Gold (Absolute)</div>
@@ -608,9 +608,7 @@ export default function MetalsPage() {
         </div>
       </div>
 
-      {/* ================= Bottom Panels ================= */}
       <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16, marginTop: 16 }}>
-        {/* Tenor Table */}
         <div style={cardStyle}>
           <div style={{ fontWeight: 800, marginBottom: 10 }}>Tenor Table</div>
           <table style={tableStyle}>
@@ -629,13 +627,10 @@ export default function MetalsPage() {
               {tenorTable.map((r) => (
                 <tr key={r.tenorMonths}>
                   <td style={thtd}>{r.tenorMonths === 0 ? "Spot" : `${r.tenorMonths}m`}</td>
-
                   <td style={thtd}>{fmtAbs(r.goldToday)}</td>
                   <td style={{ ...thtd, ...deltaTextStyle(r.goldChg) }}>{fmtAbs(r.goldChg)}</td>
-
                   <td style={thtd}>{fmtAbs(r.silverToday)}</td>
                   <td style={{ ...thtd, ...deltaTextStyle(r.silverChg) }}>{fmtAbs(r.silverChg)}</td>
-
                   <td style={thtd}>{fmtRatio(r.ratioToday)}</td>
                   <td style={{ ...thtd, ...deltaTextStyle(r.ratioChg) }}>{fmtRatio(r.ratioChg)}</td>
                 </tr>
@@ -644,22 +639,9 @@ export default function MetalsPage() {
           </table>
         </div>
 
-        {/* Decision + Quality */}
         <div style={{ display: "grid", gap: 16 }}>
           <div style={cardStyle}>
             <div style={{ fontWeight: 800, marginBottom: 10 }}>Decision Read</div>
-
-            {divergenceMajor && divText && (
-              <div style={{ marginBottom: 10, fontSize: 13, fontWeight: 900, color: "#991b1b" }}>
-                {divText}
-              </div>
-            )}
-
-            {divergenceMinor && divText && (
-              <div style={{ marginBottom: 10, fontSize: 13, fontWeight: 900, color: "#92400e" }}>
-                {divText}
-              </div>
-            )}
 
             {anyMajorBackwardation && (
               <div style={{ marginBottom: 10, fontSize: 13, fontWeight: 900, color: "#991b1b" }}>
@@ -670,6 +652,12 @@ export default function MetalsPage() {
             {anyMinorBackwardation && (
               <div style={{ marginBottom: 10, fontSize: 13, fontWeight: 900, color: "#92400e" }}>
                 {minorWatchLine}
+              </div>
+            )}
+
+            {(divergenceMajor || divergenceMinor) && divText && (
+              <div style={{ marginBottom: 10, fontSize: 13, fontWeight: 900 }}>
+                {divText}
               </div>
             )}
 
