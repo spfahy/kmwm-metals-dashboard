@@ -356,7 +356,9 @@ export default function MetalsPage() {
         : null;
 
     const goldChg =
-      r.goldToday != null && r.goldPrior != null ? r.goldToday - r.goldPrior : null;
+      r.goldToday != null && r.goldPrior != null
+        ? r.goldToday - r.goldPrior
+        : null;
 
     const silverChg =
       r.silverToday != null && r.silverPrior != null
@@ -390,12 +392,28 @@ export default function MetalsPage() {
   });
   const qualityStatus = missingTenors.length === 0 ? "Complete" : "Missing Tenors";
 
+  // Signal Confidence (simple + stable)
+  const signalConfidence =
+    missingTenors.length === 0 ? "High" : missingTenors.length <= 2 ? "Medium" : "Low";
+
   /* ---------- decision read ---------- */
 
   const divergence =
     goldRegime !== "Unknown" &&
     silverRegime !== "Unknown" &&
     goldRegime !== silverRegime;
+
+  // Action Bias (executive-grade, no fluff)
+  // Priority: Divergence Alert > Major Backwardation > Minor Backwardation > Both Contango > Neutral
+  const actionBias = divergenceMajor
+    ? "Caution / Neutral (conflict)"
+    : anyMajorBackwardation
+    ? "Risk-Off"
+    : anyMinorBackwardation
+    ? "Caution"
+    : goldRegime === "Contango" && silverRegime === "Contango"
+    ? "Risk-On"
+    : "Neutral";
 
   const tighterMetal =
     goldSpread != null && silverSpread != null
@@ -599,7 +617,7 @@ export default function MetalsPage() {
                 dot={false}
               />
 
-              {/* PRIOR = clearly dotted + slightly faded (easier to separate) */}
+              {/* PRIOR = clearly dotted + slightly faded */}
               <Line
                 name="Gold % Prior"
                 dataKey="goldPctPrior"
@@ -696,6 +714,14 @@ export default function MetalsPage() {
         <div style={{ display: "grid", gap: 16 }}>
           <div style={cardStyle}>
             <div style={{ fontWeight: 800, marginBottom: 10 }}>Decision Read</div>
+
+            {/* NEW: Action Bias + Signal Confidence */}
+            <div style={{ fontSize: 13, marginBottom: 6 }}>
+              <b>Action Bias:</b> {actionBias}
+            </div>
+            <div style={{ fontSize: 13, marginBottom: 10 }}>
+              <b>Signal Confidence:</b> {signalConfidence}
+            </div>
 
             {anyMajorBackwardation && (
               <div style={{ marginBottom: 10, fontSize: 13, fontWeight: 900, color: "#991b1b" }}>
