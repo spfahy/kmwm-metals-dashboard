@@ -122,7 +122,7 @@ const curvesRaw = Array.isArray(data?.curves)
   ? data
   : [];
 
-const trackedTenors = [0, 1, 2, 3, 4, 5, 12];
+const trackedTenors = new Set([0, 1, 2, 3, 4, 5, 12]);
 
 const rows = useMemo(() => {
   return curvesRaw
@@ -132,7 +132,7 @@ const rows = useMemo(() => {
         toNumOrNull(r.tenor_months) ??
         toNumOrNull(r.months);
 
-      if (!trackedTenors.includes(tenor)) return null;
+      if (tenor == null || !trackedTenors.has(tenor)) return null;
 
       return {
         tenorMonths: tenor,
