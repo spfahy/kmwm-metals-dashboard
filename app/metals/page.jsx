@@ -19,10 +19,17 @@ const toNumOrNull = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
-const fmtPct = (v) =>
-  v == null ? "--" : `${(v * 100).toFixed(1)}%`;
+const fmtPct = (v) => (v == null ? "--" : `${(v * 100).toFixed(1)}%`);
 
 const fmtAbs = (v) =>
+  v == null
+    ? "--"
+    : Number(v).toLocaleString(undefined, {
+        minimumFractionDigits: 3,
+        maximumFractionDigits: 3,
+      });
+
+const fmtRatio = (v) =>
   v == null
     ? "--"
     : Number(v).toLocaleString(undefined, {
@@ -40,6 +47,65 @@ const tightDomain = (values) => {
   return [lo - pad, hi + pad];
 };
 
+const corr = (xs, ys) => {
+  const pairs = xs
+    .map((x, i) => [x, ys[i]])
+    .filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b));
+  if (pairs.length < 3) return null;
+
+  const x = pairs.map((p) => p[0]);
+  const y = pairs.map((p) => p[1]);
+
+  const mx = x.reduce((s, v) => s + v, 0) / x.length;
+  const my = y.reduce((s, v) => s + v, 0) / y.length;
+
+  let num = 0;
+  let dx = 0;
+  let dy = 0;
+
+  for (let i = 0; i < x.length; i++) {
+    const a = x[i] - mx;
+    const b = y[i] - my;
+    num += a * b;
+    dx += a * a;
+    dy += b * b;
+  }
+
+  const den = Math.sqrt(dx * dy);
+  if (!Number.isFinite(den) || den === 0) return null;
+
+  return num / den;
+};
+
+const chipStyle = (bg, color) => ({
+  display: "inline-block",
+  padding: "4px 10px",
+  borderRadius: 999,
+  background: bg,
+  color,
+  fontSize: 12,
+  fontWeight: 600,
+});
+
+const cardStyle = {
+  border: "1px solid #ddd",
+  borderRadius: 14,
+  padding: 12,
+  background: "white",
+};
+
+const tableStyle = {
+  width: "100%",
+  borderCollapse: "collapse",
+  fontSize: 13,
+};
+
+const thtd = {
+  padding: "8px 8px",
+  borderBottom: "1px solid #eee",
+  textAlign: "left",
+};
+
 /* ================= page ================= */
 
 export default function MetalsPage() {
@@ -51,6 +117,9 @@ export default function MetalsPage() {
       .then(setData);
   }, []);
 
+  const trackedTenorList = [0, 1, 2, 3, 4, 5, 12];
+  const trackedTenors = new Set(trackedTenorList);
+
   /* ---------- normalize rows ---------- */
 
   const curvesRaw = Array.isArray(data?.curves)
@@ -59,26 +128,19 @@ export default function MetalsPage() {
     ? data
     : [];
 
-  const trackedTenors = new Set([0, 1, 2, 3, 4, 5, 12]);
-
   const rows = useMemo(() => {
     return curvesRaw
       .map((r) => {
-        const tenor =
-          toNumOrNull(r.tenorMonths ?? r.tenor_months ?? r.months);
-        if (!trackedTenors.has(tenor)) return null;
+        const tenor = toNumOrNull(r.tenorMonths ?? r.tenor_months ?? r.months);
+        if (tenor == null || !trackedTenors.has(tenor)) return null;
 
         const metal = String(r.metal ?? "").toLowerCase();
         const price = toNumOrNull(r.price);
 
         return {
           tenorMonths: tenor,
-          goldToday:
-            toNumOrNull(r.goldToday) ??
-            (metal.includes("gold") ? price : null),
-          silverToday:
-            toNumOrNull(r.silverToday) ??
-            (metal.includes("silver") ? price : null),
+          goldToday: toNumOrNull(r.goldToday) ?? (metal.includes("gold") ? price : null),
+          silverToday: toNumOrNull(r.silverToday) ?? (metal.includes("silver") ? price : null),
           goldPrior: toNumOrNull(r.goldPrior),
           silverPrior: toNumOrNull(r.silverPrior),
         };
@@ -101,6 +163,17 @@ export default function MetalsPage() {
     goldSpot != null && gold12m != null ? gold12m - goldSpot : null;
   const silverSpread =
     silverSpot != null && silver12m != null ? silver12m - silverSpot : null;
+
+  const goldRegime =
+    goldSpread == null ? "Unknown" : goldSpread < 0 ? "Backwardation" : "Contango";
+  const silverRegime =
+    silverSpread == null ? "Unknown" : silverSpread < 0 ? "Backwardation" : "Contango";
+
+  const regimeChip = (reg) => {
+    if (reg === "Backwardation") return chipStyle("#fee2e2", "#991b1b");
+    if (reg === "Contango") return chipStyle("#dcfce7", "#166534");
+    return chipStyle("#e5e7eb", "#111827");
+  };
 
   /* ---------- curve shape ---------- */
 
@@ -125,24 +198,71 @@ export default function MetalsPage() {
   }));
 
   const pctDomain = tightDomain(
-    curveRows.flatMap((r) => [
-      r.goldPct,
-      r.goldPctPrior,
-      r.silverPct,
-      r.silverPctPrior,
-    ])
+    curveRows.flatMap((r) => [r.goldPct, r.goldPctPrior, r.silverPct, r.silverPctPrior])
   );
 
   const goldAbsDomain = tightDomain(rows.map((r) => r.goldToday));
   const silverAbsDomain = tightDomain(rows.map((r) => r.silverToday));
 
+  /* ---------- correlation + tenor table ---------- */
+
+  const tenorMap = new Map();
+  for (const t of trackedTenorList) tenorMap.set(t, { tenorMonths: t });
+
+  for (const r of rows) {
+    const row = tenorMap.get(r.tenorMonths) || { tenorMonths: r.tenorMonths };
+    if (r.goldToday != null) row.goldToday = r.goldToday;
+    if (r.silverToday != null) row.silverToday = r.silverToday;
+    if (r.goldPrior != null) row.goldPrior = r.goldPrior;
+    if (r.silverPrior != null) row.silverPrior = r.silverPrior;
+    tenorMap.set(r.tenorMonths, row);
+  }
+
+  const tenorTable = trackedTenorList.map((t) => {
+    const r = tenorMap.get(t) || { tenorMonths: t };
+    const ratio =
+      r.goldToday != null && r.silverToday != null && r.silverToday !== 0
+        ? r.goldToday / r.silverToday
+        : null;
+    return { ...r, ratio };
+  });
+
+  const curveCorr = corr(
+    tenorTable.map((r) => r.goldToday),
+    tenorTable.map((r) => r.silverToday)
+  );
+
+  const corrText =
+    curveCorr == null ? "--" : Number(curveCorr).toFixed(2);
+
+  /* ---------- data quality ---------- */
+
+  const missingTenors = trackedTenorList.filter((t) => {
+    const r = tenorMap.get(t);
+    const hasGold = r?.goldToday != null;
+    const hasSilver = r?.silverToday != null;
+    return !(hasGold && hasSilver);
+  });
+
+  const qualityStatus =
+    missingTenors.length === 0 ? "Complete" : "Missing Tenors";
+
+  /* ---------- decision read ---------- */
+
+  const divergence =
+    goldRegime !== "Unknown" &&
+    silverRegime !== "Unknown" &&
+    goldRegime !== silverRegime;
+
+  const decisionLine = divergence
+    ? "Divergence: gold and silver curve regimes disagree (watch macro regime + industrial demand signals)."
+    : "Aligned: gold and silver curve regimes agree (use spread direction as the primary signal).";
+
   /* ================= render ================= */
 
   return (
     <div style={{ padding: 16 }}>
-
-      {/* ================= Header ================= */}
-      <h1>Gold & Silver — Term Structure</h1>
+      <h1 style={{ marginBottom: 8 }}>Gold & Silver — Term Structure</h1>
 
       {/* ================= Top Cards ================= */}
       <div
@@ -153,55 +273,73 @@ export default function MetalsPage() {
           marginBottom: 16,
         }}
       >
-        <div style={{ border: "1px solid #ddd", padding: 12 }}>
-          <b>Gold</b>
-          <div>Spot: {fmtAbs(goldSpot)}</div>
-          <div>12m − 0m: {fmtAbs(goldSpread)}</div>
+        <div style={cardStyle}>
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>Gold</div>
+          <div>Spot: <b>{fmtAbs(goldSpot)}</b></div>
+          <div style={{ marginTop: 6 }}>
+            <span style={regimeChip(goldRegime)}>{goldRegime}</span>
+            <span style={{ marginLeft: 10 }}>12m − 0m: <b>{fmtAbs(goldSpread)}</b></span>
+          </div>
         </div>
 
-        <div style={{ border: "1px solid #ddd", padding: 12 }}>
-          <b>Silver</b>
-          <div>Spot: {fmtAbs(silverSpot)}</div>
-          <div>12m − 0m: {fmtAbs(silverSpread)}</div>
+        <div style={cardStyle}>
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>Silver</div>
+          <div>Spot: <b>{fmtAbs(silverSpot)}</b></div>
+          <div style={{ marginTop: 6 }}>
+            <span style={regimeChip(silverRegime)}>{silverRegime}</span>
+            <span style={{ marginLeft: 10 }}>12m − 0m: <b>{fmtAbs(silverSpread)}</b></span>
+          </div>
         </div>
 
-        <div style={{ border: "1px solid #ddd", padding: 12 }}>
-          <b>Gold vs Silver</b>
-          <div>Negative spread = backwardation</div>
+        <div style={cardStyle}>
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>Gold vs Silver</div>
+          <div>Curve Correlation: <b>{corrText}</b></div>
+          <div style={{ marginTop: 6, fontSize: 12, opacity: 0.8 }}>
+            Negative spread = backwardation.
+          </div>
         </div>
       </div>
 
       {/* ================= Curve Shape ================= */}
-      <h2>Curve Shape (% vs Spot)</h2>
+      <div style={cardStyle}>
+        <div style={{ fontWeight: 800, marginBottom: 8 }}>Curve Shape (% vs Spot)</div>
 
-      <div style={{ height: 320 }}>
-        <ResponsiveContainer>
-          <LineChart
-            data={curveRows}
-            margin={{ top: 10, right: 16, left: 36, bottom: 10 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="tenorMonths" />
-            <YAxis
-              width={80}
-              domain={pctDomain}
-              tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
-            />
-            <Tooltip formatter={fmtPct} />
-            <Legend />
+        <div style={{ height: 320 }}>
+          <ResponsiveContainer>
+            <LineChart
+              data={curveRows}
+              margin={{ top: 10, right: 16, left: 36, bottom: 10 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="tenorMonths" />
+              <YAxis
+                width={80}
+                domain={pctDomain}
+                tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
+              />
+              <Tooltip formatter={fmtPct} />
+              <Legend />
 
-            <Line name="Gold % Today" dataKey="goldPct" stroke="#111827" strokeWidth={3} dot={false} />
-            <Line name="Gold % Prior" dataKey="goldPctPrior" stroke="#9ca3af" strokeWidth={2} strokeDasharray="8 5" dot={false} />
-            <Line name="Silver % Today" dataKey="silverPct" stroke="#2563eb" strokeWidth={3} dot={false} />
-            <Line name="Silver % Prior" dataKey="silverPctPrior" stroke="#93c5fd" strokeWidth={2} strokeDasharray="8 5" dot={false} />
-          </LineChart>
-        </ResponsiveContainer>
+              <Line name="Gold % Today" dataKey="goldPct" stroke="#111827" strokeWidth={3} dot={false} />
+              <Line name="Gold % Prior" dataKey="goldPctPrior" stroke="#9ca3af" strokeWidth={2} strokeDasharray="8 5" dot={false} />
+              <Line name="Silver % Today" dataKey="silverPct" stroke="#2563eb" strokeWidth={3} dot={false} />
+              <Line name="Silver % Prior" dataKey="silverPctPrior" stroke="#93c5fd" strokeWidth={2} strokeDasharray="8 5" dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       {/* ================= Absolute Charts ================= */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 }}>
-        <div style={{ border: "1px solid #ddd", padding: 12 }}>
-          <h3>Gold (Absolute)</h3>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 16,
+          marginTop: 16,
+        }}
+      >
+        <div style={cardStyle}>
+          <div style={{ fontWeight: 800, marginBottom: 8 }}>Gold (Absolute)</div>
           <div style={{ height: 260 }}>
             <ResponsiveContainer>
               <LineChart data={rows} margin={{ top: 10, right: 16, left: 36, bottom: 10 }}>
@@ -217,8 +355,8 @@ export default function MetalsPage() {
           </div>
         </div>
 
-        <div style={{ border: "1px solid #ddd", padding: 12 }}>
-          <h3>Silver (Absolute)</h3>
+        <div style={cardStyle}>
+          <div style={{ fontWeight: 800, marginBottom: 8 }}>Silver (Absolute)</div>
           <div style={{ height: 260 }}>
             <ResponsiveContainer>
               <LineChart data={rows} margin={{ top: 10, right: 16, left: 36, bottom: 10 }}>
@@ -231,6 +369,63 @@ export default function MetalsPage() {
                 <Line name="Silver Prior" dataKey="silverPrior" stroke="#93c5fd" strokeWidth={2} strokeDasharray="8 5" dot={false} />
               </LineChart>
             </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* ================= Bottom Panels ================= */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16, marginTop: 16 }}>
+        {/* Tenor Table */}
+        <div style={cardStyle}>
+          <div style={{ fontWeight: 800, marginBottom: 10 }}>Tenor Table</div>
+          <table style={tableStyle}>
+            <thead>
+              <tr>
+                <th style={thtd}>Tenor</th>
+                <th style={thtd}>Gold Today</th>
+                <th style={thtd}>Silver Today</th>
+                <th style={thtd}>Ratio (Gold / Silver)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tenorTable.map((r) => (
+                <tr key={r.tenorMonths}>
+                  <td style={thtd}>{r.tenorMonths === 0 ? "Spot" : `${r.tenorMonths}m`}</td>
+                  <td style={thtd}>{fmtAbs(r.goldToday)}</td>
+                  <td style={thtd}>{fmtAbs(r.silverToday)}</td>
+                  <td style={thtd}>{fmtRatio(r.ratio)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Decision + Quality */}
+        <div style={{ display: "grid", gap: 16 }}>
+          <div style={cardStyle}>
+            <div style={{ fontWeight: 800, marginBottom: 10 }}>Decision Read</div>
+            <div style={{ marginBottom: 10 }}>
+              Gold: <span style={regimeChip(goldRegime)}>{goldRegime}</span>
+              <span style={{ marginLeft: 10 }}>
+                Silver: <span style={regimeChip(silverRegime)}>{silverRegime}</span>
+              </span>
+            </div>
+            <div style={{ fontSize: 13, lineHeight: 1.4 }}>{decisionLine}</div>
+          </div>
+
+          <div style={cardStyle}>
+            <div style={{ fontWeight: 800, marginBottom: 10 }}>Data Quality</div>
+            <div>Status: <b>{qualityStatus}</b></div>
+            {missingTenors.length > 0 && (
+              <div style={{ marginTop: 8, fontSize: 13 }}>
+                Missing: {missingTenors.map((t) => (t === 0 ? "Spot" : `${t}m`)).join(", ")}
+              </div>
+            )}
+            {missingTenors.length === 0 && (
+              <div style={{ marginTop: 8, fontSize: 13 }}>
+                All tracked tenors present for both metals.
+              </div>
+            )}
           </div>
         </div>
       </div>
