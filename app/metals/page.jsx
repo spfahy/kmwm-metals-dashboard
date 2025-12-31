@@ -122,6 +122,13 @@ const spreadTextStyle = (spread) => {
     : { color: "#111827", fontWeight: 800 };
 };
 
+const deltaTextStyle = (v) => {
+  if (!Number.isFinite(v)) return { color: "#6b7280" }; // gray
+  if (v > 0) return { color: "#166534", fontWeight: 800 }; // green
+  if (v < 0) return { color: "#991b1b", fontWeight: 800 }; // red
+  return { color: "#6b7280", fontWeight: 700 }; // gray for zero
+};
+
 const alertBannerStyle = {
   border: "1px solid #fecaca",
   background: "#fee2e2",
@@ -564,12 +571,15 @@ export default function MetalsPage() {
               {tenorTable.map((r) => (
                 <tr key={r.tenorMonths}>
                   <td style={thtd}>{r.tenorMonths === 0 ? "Spot" : `${r.tenorMonths}m`}</td>
+
                   <td style={thtd}>{fmtAbs(r.goldToday)}</td>
-                  <td style={thtd}>{fmtAbs(r.goldChg)}</td>
+                  <td style={{ ...thtd, ...deltaTextStyle(r.goldChg) }}>{fmtAbs(r.goldChg)}</td>
+
                   <td style={thtd}>{fmtAbs(r.silverToday)}</td>
-                  <td style={thtd}>{fmtAbs(r.silverChg)}</td>
+                  <td style={{ ...thtd, ...deltaTextStyle(r.silverChg) }}>{fmtAbs(r.silverChg)}</td>
+
                   <td style={thtd}>{fmtRatio(r.ratioToday)}</td>
-                  <td style={thtd}>{fmtRatio(r.ratioChg)}</td>
+                  <td style={{ ...thtd, ...deltaTextStyle(r.ratioChg) }}>{fmtRatio(r.ratioChg)}</td>
                 </tr>
               ))}
             </tbody>
