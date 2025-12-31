@@ -564,9 +564,9 @@ export default function MetalsPage() {
               <Tooltip formatter={fmtPct} />
               <Legend />
               <Line name="Gold % Today" dataKey="goldPct" stroke="#111827" strokeWidth={3} dot={false} />
-              <Line name="Gold % Prior" dataKey="goldPctPrior" stroke="#9ca3af" strokeWidth={2} strokeDasharray="8 5" dot={false} />
               <Line name="Silver % Today" dataKey="silverPct" stroke="#2563eb" strokeWidth={3} dot={false} />
-              <Line name="Silver % Prior" dataKey="silverPctPrior" stroke="#93c5fd" strokeWidth={2} strokeDasharray="8 5" dot={false} />
+              <Line name="Gold % Prior" dataKey="goldPctPrior" stroke="#9ca3af" strokeWidth={2} strokeDasharray="2 6" strokeOpacity={0.75} dot={false} />
+<Line name="Silver % Prior" dataKey="silverPctPrior" stroke="#60a5fa" strokeWidth={2} strokeDasharray="2 6" strokeOpacity={0.70} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
