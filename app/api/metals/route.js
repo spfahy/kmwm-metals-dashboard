@@ -42,6 +42,7 @@ export async function GET() {
         return NextResponse.json({
           asOfDate: null,
           priorDate: null,
+          spot: { gold: null, silver: null },
           curves: [],
           note: "No metals_curve_history data found.",
         });
@@ -99,7 +100,7 @@ export async function GET() {
         };
       }
 
-      // Tenors union
+      // 4) Build CURVES output (same as your old behavior)
       const tenors = new Set();
       Object.keys(todayBy).forEach((k) => tenors.add(Number(k.split("_")[1])));
       Object.keys(priorBy).forEach((k) => tenors.add(Number(k.split("_")[1])));
@@ -116,7 +117,13 @@ export async function GET() {
           return { tenorMonths: tenor, goldToday, goldPrior, silverToday, silverPrior };
         });
 
-      return NextResponse.json({ asOfDate, priorDate, curves });
+      // ✅ 5) NEW: Spot prices = tenorMonths = 0
+      const spot = {
+        gold: todayBy["Gold_0"]?.price ?? null,
+        silver: todayBy["Silver_0"]?.price ?? null,
+      };
+
+      return NextResponse.json({ asOfDate, priorDate, spot, curves });
     } finally {
       client.release();
     }
