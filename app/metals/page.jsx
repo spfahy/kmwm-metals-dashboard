@@ -180,11 +180,23 @@ const headlineStyle = {
 export default function MetalsPage() {
   const [data, setData] = useState(null);
 
+  // NEW: Gold curve history for the historical curve panel
+  const [goldHistory, setGoldHistory] = useState(null);
+
   useEffect(() => {
     fetch("/api/metals")
       .then((r) => r.json())
       .then(setData)
       .catch(() => setData({ curves: [] }));
+  }, []);
+
+  // NEW: fetch historical curves from your existing route: /api/metals-history
+  useEffect(() => {
+    const tenors = "0,1,2,3,4,5,12";
+    fetch(`/api/metals-history?metal=Gold&days=90&tenors=${tenors}`)
+      .then((r) => r.json())
+      .then(setGoldHistory)
+      .catch(() => setGoldHistory({ rows: [] }));
   }, []);
 
   const trackedTenorList = [0, 1, 2, 3, 4, 5, 12];
@@ -356,7 +368,9 @@ export default function MetalsPage() {
         : null;
 
     const goldChg =
-      r.goldToday != null && r.goldPrior != null ? r.goldToday - r.goldPrior : null;
+      r.goldToday != null && r.goldPrior != null
+        ? r.goldToday - r.goldPrior
+        : null;
 
     const silverChg =
       r.silverToday != null && r.silverPrior != null
@@ -388,10 +402,15 @@ export default function MetalsPage() {
     const r = tenorMap.get(t);
     return !(r?.goldToday != null && r?.silverToday != null);
   });
-  const qualityStatus = missingTenors.length === 0 ? "Complete" : "Missing Tenors";
+  const qualityStatus =
+    missingTenors.length === 0 ? "Complete" : "Missing Tenors";
 
   const signalConfidence =
-    missingTenors.length === 0 ? "High" : missingTenors.length <= 2 ? "Medium" : "Low";
+    missingTenors.length === 0
+      ? "High"
+      : missingTenors.length <= 2
+      ? "Medium"
+      : "Low";
 
   /* ---------- action bias ---------- */
 
@@ -431,57 +450,79 @@ export default function MetalsPage() {
   /* ---------- alerts ---------- */
 
   const majorAlertLine = `ALERT (≤ -0.25% of spot): ${
-    goldMajorBack ? `Gold 12m−0m = ${fmtAbs(goldSpread)} (${fmtPct(goldSpreadPct)})` : ""
+    goldMajorBack
+      ? `Gold 12m−0m = ${fmtAbs(goldSpread)} (${fmtPct(goldSpreadPct)})`
+      : ""
   }${goldMajorBack && silverMajorBack ? " | " : ""}${
-    silverMajorBack ? `Silver 12m−0m = ${fmtAbs(silverSpread)} (${fmtPct(silverSpreadPct)})` : ""
+    silverMajorBack
+      ? `Silver 12m−0m = ${fmtAbs(silverSpread)} (${fmtPct(silverSpreadPct)})`
+      : ""
   }`;
 
   const minorWatchLine = `WATCH (small backwardation): ${
-    goldMinorBack ? `Gold 12m−0m = ${fmtAbs(goldSpread)} (${fmtPct(goldSpreadPct)})` : ""
+    goldMinorBack
+      ? `Gold 12m−0m = ${fmtAbs(goldSpread)} (${fmtPct(goldSpreadPct)})`
+      : ""
   }${goldMinorBack && silverMinorBack ? " | " : ""}${
-    silverMinorBack ? `Silver 12m−0m = ${fmtAbs(silverSpread)} (${fmtPct(silverSpreadPct)})` : ""
+    silverMinorBack
+      ? `Silver 12m−0m = ${fmtAbs(silverSpread)} (${fmtPct(silverSpreadPct)})`
+      : ""
   }`;
 
-  /* ---------- biggest daily move ---------- */
+  /* ---------- build Historical Curve Evolution data ---------- */
 
-  let biggestMove = null;
-  for (const r of tenorTable) {
-    const candidates = [
-      { metric: "Gold Δ", value: r.goldChg },
-      { metric: "Silver Δ", value: r.silverChg },
-      { metric: "Ratio Δ", value: r.ratioChg },
-    ];
-    for (const c of candidates) {
-      if (!Number.isFinite(c.value)) continue;
-      const abs = Math.abs(c.value);
-      if (!biggestMove || abs > biggestMove.valueAbs) {
-        biggestMove = {
-          metric: c.metric,
-          tenorMonths: r.tenorMonths,
-          valueAbs: abs,
-          valueSigned: c.value,
-        };
-      }
+  const goldCurves = useMemo(() => {
+    const raw = Array.isArray(goldHistory?.rows) ? goldHistory.rows : [];
+    if (!raw.length) return [];
+
+    const byDate = new Map();
+    for (const r of raw) {
+      const d = String(r.as_of_date || "").slice(0, 10);
+      const t = Number(r.tenor_months);
+      const p = Number(r.price);
+      if (!d || !Number.isFinite(t) || !Number.isFinite(p)) continue;
+
+      if (!byDate.has(d)) byDate.set(d, new Map());
+      byDate.get(d).set(t, p);
     }
-  }
+
+    const dates = Array.from(byDate.keys()).sort();
+    const curves = [];
+
+    for (const d of dates) {
+      const m = byDate.get(d);
+      const points = trackedTenorList.map((tenorMonths) => ({
+        tenorMonths,
+        price: m.get(tenorMonths),
+      }));
+
+      const complete = points.every((pt) => Number.isFinite(pt.price));
+      if (!complete) continue;
+
+      curves.push({ date: d, points });
+    }
+
+    return curves;
+  }, [goldHistory]);
+
+  const latestGoldCurve = goldCurves.length
+    ? goldCurves[goldCurves.length - 1]
+    : null;
+
+  const opacityForCurveIndex = (i, n) => {
+    if (n <= 1) return 1;
+    const x = i / (n - 1);
+    const o = 0.08 + 0.55 * Math.pow(x, 2.2);
+    return Math.min(Math.max(o, 0.06), 0.65);
+  };
+
+  /* ---------- headline ---------- */
 
   const divergenceLabel = divergenceMajor
     ? "Divergence ALERT"
     : divergenceMinor
     ? "Divergence WATCH"
     : "No divergence";
-
-  const biggestMoveText = (() => {
-    if (!biggestMove) return "Biggest move: --";
-    const t = biggestMove.tenorMonths === 0 ? "Spot" : `${biggestMove.tenorMonths}m`;
-    const v =
-      biggestMove.metric === "Ratio Δ"
-        ? fmtRatio(biggestMove.valueSigned)
-        : fmtAbs(biggestMove.valueSigned);
-    return `Biggest move: ${biggestMove.metric} at ${t} = ${v}`;
-  })();
-
-  /* ---------- headline (NOW includes Action Bias + Confidence) ---------- */
 
   const todaysTake = `Action Bias: ${actionBias} | Confidence: ${signalConfidence} | Gold ${goldRegime} | Silver ${silverRegime} | ${divergenceLabel}`;
 
@@ -495,79 +536,134 @@ export default function MetalsPage() {
 
       <h1 style={{ marginBottom: 8 }}>Gold & Silver — Term Structure</h1>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr",
+          gap: 12,
+          marginBottom: 16,
+        }}
+      >
         <div style={cardStyle}>
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Gold</div>
-          <div>Spot: <b>{fmtAbs(goldSpot)}</b></div>
+          <div>
+            Spot: <b>{fmtAbs(goldSpot)}</b>
+          </div>
           <div style={{ marginTop: 6 }}>
             <span style={chipStyleForRegime(goldRegime)}>{goldRegime}</span>
             <span style={{ marginLeft: 10 }}>
-              12m − 0m: <span style={spreadTextStyle(goldSpread)}>{fmtAbs(goldSpread)}</span>
-              {goldSpreadPct != null && <span style={{ marginLeft: 8, opacity: 0.75 }}>({fmtPct(goldSpreadPct)})</span>}
+              12m − 0m:{" "}
+              <span style={spreadTextStyle(goldSpread)}>
+                {fmtAbs(goldSpread)}
+              </span>
+              {goldSpreadPct != null && (
+                <span style={{ marginLeft: 8, opacity: 0.75 }}>
+                  ({fmtPct(goldSpreadPct)})
+                </span>
+              )}
             </span>
           </div>
         </div>
 
         <div style={cardStyle}>
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Silver</div>
-          <div>Spot: <b>{fmtAbs(silverSpot)}</b></div>
+          <div>
+            Spot: <b>{fmtAbs(silverSpot)}</b>
+          </div>
           <div style={{ marginTop: 6 }}>
             <span style={chipStyleForRegime(silverRegime)}>{silverRegime}</span>
             <span style={{ marginLeft: 10 }}>
-              12m − 0m: <span style={spreadTextStyle(silverSpread)}>{fmtAbs(silverSpread)}</span>
-              {silverSpreadPct != null && <span style={{ marginLeft: 8, opacity: 0.75 }}>({fmtPct(silverSpreadPct)})</span>}
+              12m − 0m:{" "}
+              <span style={spreadTextStyle(silverSpread)}>
+                {fmtAbs(silverSpread)}
+              </span>
+              {silverSpreadPct != null && (
+                <span style={{ marginLeft: 8, opacity: 0.75 }}>
+                  ({fmtPct(silverSpreadPct)})
+                </span>
+              )}
             </span>
           </div>
         </div>
 
         <div style={cardStyle}>
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Gold vs Silver</div>
-          <div>Curve Correlation: <b>{corrText}</b></div>
-          <div style={{ marginTop: 6, fontSize: 12, opacity: 0.8 }}>Negative spread = backwardation.</div>
+          <div>
+            Curve Correlation: <b>{corrText}</b>
+          </div>
+          <div style={{ marginTop: 6, fontSize: 12, opacity: 0.8 }}>
+            Negative spread = backwardation.
+          </div>
         </div>
       </div>
 
       {divergenceMajor && divText && (
         <div style={divergenceAlertStyle}>
-          <div style={{ fontWeight: 900, marginBottom: 6 }}>Divergence Alert</div>
+          <div style={{ fontWeight: 900, marginBottom: 6 }}>
+            Divergence Alert
+          </div>
           <div style={{ fontSize: 13, lineHeight: 1.4 }}>{divText}</div>
         </div>
       )}
 
       {divergenceMinor && divText && (
         <div style={divergenceWatchStyle}>
-          <div style={{ fontWeight: 900, marginBottom: 6 }}>Divergence Watch</div>
+          <div style={{ fontWeight: 900, marginBottom: 6 }}>
+            Divergence Watch
+          </div>
           <div style={{ fontSize: 13, lineHeight: 1.4 }}>{divText}</div>
         </div>
       )}
 
       {anyMajorBackwardation && (
         <div style={alertBannerStyle}>
-          <div style={{ fontWeight: 900, marginBottom: 6 }}>Backwardation Alert</div>
-          <div style={{ fontSize: 13, lineHeight: 1.4 }}>{majorAlertLine}</div>
+          <div style={{ fontWeight: 900, marginBottom: 6 }}>
+            Backwardation Alert
+          </div>
+          <div style={{ fontSize: 13, lineHeight: 1.4 }}>
+            {majorAlertLine}
+          </div>
         </div>
       )}
 
       {anyMinorBackwardation && (
         <div style={watchBannerStyle}>
-          <div style={{ fontWeight: 900, marginBottom: 6 }}>Backwardation Watch</div>
-          <div style={{ fontSize: 13, lineHeight: 1.4 }}>{minorWatchLine}</div>
+          <div style={{ fontWeight: 900, marginBottom: 6 }}>
+            Backwardation Watch
+          </div>
+          <div style={{ fontSize: 13, lineHeight: 1.4 }}>
+            {minorWatchLine}
+          </div>
         </div>
       )}
 
       <div style={cardStyle}>
-        <div style={{ fontWeight: 800, marginBottom: 8 }}>Curve Shape (% vs Spot)</div>
+        <div style={{ fontWeight: 800, marginBottom: 8 }}>
+          Curve Shape (% vs Spot)
+        </div>
         <div style={{ height: 320 }}>
           <ResponsiveContainer>
-            <LineChart data={curveRows} margin={{ top: 10, right: 16, left: 36, bottom: 10 }}>
+            <LineChart
+              data={curveRows}
+              margin={{ top: 10, right: 16, left: 36, bottom: 10 }}
+            >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="tenorMonths" />
-              <YAxis width={80} domain={pctDomain} tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} />
+              <YAxis
+                width={80}
+                domain={pctDomain}
+                tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
+              />
               <Tooltip formatter={fmtPct} />
               <Legend />
 
-              {/* Legend order: Gold Today, Gold Prior, Silver Today, Silver Prior */}
-              <Line name="Gold % Today" dataKey="goldPct" stroke="#111827" strokeWidth={3} dot={false} />
+              <Line
+                name="Gold % Today"
+                dataKey="goldPct"
+                stroke="#111827"
+                strokeWidth={3}
+                dot={false}
+              />
               <Line
                 name="Gold % Prior"
                 dataKey="goldPctPrior"
@@ -577,7 +673,13 @@ export default function MetalsPage() {
                 dot={{ r: 3 }}
                 activeDot={{ r: 5 }}
               />
-              <Line name="Silver % Today" dataKey="silverPct" stroke="#2563eb" strokeWidth={3} dot={false} />
+              <Line
+                name="Silver % Today"
+                dataKey="silverPct"
+                stroke="#2563eb"
+                strokeWidth={3}
+                dot={false}
+              />
               <Line
                 name="Silver % Prior"
                 dataKey="silverPctPrior"
@@ -592,18 +694,35 @@ export default function MetalsPage() {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 }}>
+      {/* Absolute charts */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 16,
+          marginTop: 16,
+        }}
+      >
         <div style={cardStyle}>
           <div style={{ fontWeight: 800, marginBottom: 8 }}>Gold (Absolute)</div>
           <div style={{ height: 260 }}>
             <ResponsiveContainer>
-              <LineChart data={rows} margin={{ top: 10, right: 16, left: 36, bottom: 10 }}>
+              <LineChart
+                data={rows}
+                margin={{ top: 10, right: 16, left: 36, bottom: 10 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="tenorMonths" />
                 <YAxis width={80} domain={goldAbsDomain} tickFormatter={fmtAbs} />
                 <Tooltip formatter={fmtAbs} />
                 <Legend />
-                <Line name="Gold Today" dataKey="goldToday" stroke="#111827" strokeWidth={3} dot={false} />
+                <Line
+                  name="Gold Today"
+                  dataKey="goldToday"
+                  stroke="#111827"
+                  strokeWidth={3}
+                  dot={false}
+                />
                 <Line
                   name="Gold Prior"
                   dataKey="goldPrior"
@@ -619,16 +738,31 @@ export default function MetalsPage() {
         </div>
 
         <div style={cardStyle}>
-          <div style={{ fontWeight: 800, marginBottom: 8 }}>Silver (Absolute)</div>
+          <div style={{ fontWeight: 800, marginBottom: 8 }}>
+            Silver (Absolute)
+          </div>
           <div style={{ height: 260 }}>
             <ResponsiveContainer>
-              <LineChart data={rows} margin={{ top: 10, right: 16, left: 36, bottom: 10 }}>
+              <LineChart
+                data={rows}
+                margin={{ top: 10, right: 16, left: 36, bottom: 10 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="tenorMonths" />
-                <YAxis width={80} domain={silverAbsDomain} tickFormatter={fmtAbs} />
+                <YAxis
+                  width={80}
+                  domain={silverAbsDomain}
+                  tickFormatter={fmtAbs}
+                />
                 <Tooltip formatter={fmtAbs} />
                 <Legend />
-                <Line name="Silver Today" dataKey="silverToday" stroke="#2563eb" strokeWidth={3} dot={false} />
+                <Line
+                  name="Silver Today"
+                  dataKey="silverToday"
+                  stroke="#2563eb"
+                  strokeWidth={3}
+                  dot={false}
+                />
                 <Line
                   name="Silver Prior"
                   dataKey="silverPrior"
@@ -644,7 +778,15 @@ export default function MetalsPage() {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16, marginTop: 16 }}>
+      {/* Tenor table + decision + data quality */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1.4fr 1fr",
+          gap: 16,
+          marginTop: 16,
+        }}
+      >
         <div style={cardStyle}>
           <div style={{ fontWeight: 800, marginBottom: 10 }}>Tenor Table</div>
           <table style={tableStyle}>
@@ -662,13 +804,21 @@ export default function MetalsPage() {
             <tbody>
               {tenorTable.map((r) => (
                 <tr key={r.tenorMonths}>
-                  <td style={thtd}>{r.tenorMonths === 0 ? "Spot" : `${r.tenorMonths}m`}</td>
+                  <td style={thtd}>
+                    {r.tenorMonths === 0 ? "Spot" : `${r.tenorMonths}m`}
+                  </td>
                   <td style={thtd}>{fmtAbs(r.goldToday)}</td>
-                  <td style={{ ...thtd, ...deltaTextStyle(r.goldChg) }}>{fmtAbs(r.goldChg)}</td>
+                  <td style={{ ...thtd, ...deltaTextStyle(r.goldChg) }}>
+                    {fmtAbs(r.goldChg)}
+                  </td>
                   <td style={thtd}>{fmtAbs(r.silverToday)}</td>
-                  <td style={{ ...thtd, ...deltaTextStyle(r.silverChg) }}>{fmtAbs(r.silverChg)}</td>
+                  <td style={{ ...thtd, ...deltaTextStyle(r.silverChg) }}>
+                    {fmtAbs(r.silverChg)}
+                  </td>
                   <td style={thtd}>{fmtRatio(r.ratioToday)}</td>
-                  <td style={{ ...thtd, ...deltaTextStyle(r.ratioChg) }}>{fmtRatio(r.ratioChg)}</td>
+                  <td style={{ ...thtd, ...deltaTextStyle(r.ratioChg) }}>
+                    {fmtRatio(r.ratioChg)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -677,7 +827,9 @@ export default function MetalsPage() {
 
         <div style={{ display: "grid", gap: 16 }}>
           <div style={cardStyle}>
-            <div style={{ fontWeight: 800, marginBottom: 10 }}>Decision Read</div>
+            <div style={{ fontWeight: 800, marginBottom: 10 }}>
+              Decision Read
+            </div>
 
             <div style={{ fontSize: 13, marginBottom: 6 }}>
               <b>Action Bias:</b> {actionBias}
@@ -686,22 +838,84 @@ export default function MetalsPage() {
               <b>Signal Confidence:</b> {signalConfidence}
             </div>
 
-            <div style={{ fontSize: 13, lineHeight: 1.4, marginBottom: 8 }}>{divergenceLine}</div>
-            <div style={{ fontSize: 13, lineHeight: 1.4 }}>{interpretationLine}</div>
+            <div style={{ fontSize: 13, lineHeight: 1.4, marginBottom: 8 }}>
+              {divergenceLine}
+            </div>
+            <div style={{ fontSize: 13, lineHeight: 1.4 }}>
+              {interpretationLine}
+            </div>
           </div>
 
           <div style={cardStyle}>
             <div style={{ fontWeight: 800, marginBottom: 10 }}>Data Quality</div>
-            <div>Status: <b>{qualityStatus}</b></div>
+            <div>
+              Status: <b>{qualityStatus}</b>
+            </div>
             {missingTenors.length > 0 ? (
               <div style={{ marginTop: 8, fontSize: 13 }}>
-                Missing: {missingTenors.map((t) => (t === 0 ? "Spot" : `${t}m`)).join(", ")}
+                Missing:{" "}
+                {missingTenors
+                  .map((t) => (t === 0 ? "Spot" : `${t}m`))
+                  .join(", ")}
               </div>
             ) : (
               <div style={{ marginTop: 8, fontSize: 13 }}>
                 All tracked tenors present for both metals.
               </div>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Historical Curve Evolution (Gold) — restored panel */}
+      <div style={{ marginTop: 16 }}>
+        <div style={cardStyle}>
+          <div style={{ fontWeight: 800, marginBottom: 8 }}>
+            Historical Curve (Gold) — Daily Curves (Last 90 Days)
+          </div>
+
+          <div style={{ height: 360 }}>
+            <ResponsiveContainer>
+              <LineChart margin={{ top: 10, right: 16, left: 36, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="tenorMonths" />
+                <YAxis width={80} tickFormatter={fmtAbs} />
+                <Tooltip formatter={fmtAbs} />
+                <Legend />
+
+                {goldCurves.slice(0, -1).map((c, i) => (
+                  <Line
+                    key={c.date}
+                    name={i === 0 ? "History" : undefined}
+                    data={c.points}
+                    dataKey="price"
+                    dot={false}
+                    stroke="#6b7280"
+                    strokeWidth={1}
+                    strokeOpacity={opacityForCurveIndex(i, goldCurves.length - 1)}
+                    isAnimationActive={false}
+                  />
+                ))}
+
+                {latestGoldCurve && (
+                  <Line
+                    key={`${latestGoldCurve.date}-latest`}
+                    name={`Latest (${latestGoldCurve.date})`}
+                    data={latestGoldCurve.points}
+                    dataKey="price"
+                    dot={false}
+                    stroke="#111827"
+                    strokeWidth={3}
+                    strokeOpacity={1}
+                    isAnimationActive={false}
+                  />
+                )}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div style={{ marginTop: 8, fontSize: 12, opacity: 0.75 }}>
+            Older curves are faded; the most recent curve is highlighted.
           </div>
         </div>
       </div>
