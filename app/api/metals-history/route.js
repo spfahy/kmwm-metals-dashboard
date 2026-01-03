@@ -3,55 +3,65 @@ import { Pool } from "pg";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  ssl: process.env.PGSSLMODE === "disable" ? false : { rejectUnauthorized: false },
 });
 
-export async function GET() {
+function parseTenors(s) {
+  if (!s) return [0, 1, 2, 3, 4, 5, 12];
+  return s
+    .split(",")
+    .map((x) => parseInt(x.trim(), 10))
+    .filter((n) => Number.isFinite(n));
+}
+
+export async function GET(req) {
   const client = await pool.connect();
 
   try {
-    // Last 90 days of history, front-month (tenor 0)
-    const res = await client.query(
-      `
-      SELECT
-        as_of_date,
-        metal,
-        tenor_months,
-        price::float
-      FROM metals_curve_history
-      WHERE tenor_months = 0
-        AND LOWER(metal) IN ('gold', 'silver')
-      ORDER BY as_of_date ASC, metal ASC
-      `
-    );
+    const { searchParams } = new URL(req.url);
 
-    const rows = res.rows || [];
+    const metal = (searchParams.get("metal") || "Gold").trim();
+    const daysRaw = parseInt(searchParams.get("days") || "90", 10);
+    const days = Number.isFinite(daysRaw) ? Math.max(10, Math.min(daysRaw, 365)) : 90;
 
-    // Group by date
-    const byDate = new Map();
+    const tenors = parseTenors(searchParams.get("tenors"));
 
-    for (const r of rows) {
-      const d = r.as_of_date;
-      if (!d) continue;
-      const key = d.toISOString().slice(0, 10); // YYYY-MM-DD
+    const sql = `
+      WITH d AS (
+        SELECT DISTINCT as_of_date
+        FROM metals_curve_history
+        WHERE metal = $1
+          AND as_of_date >= (CURRENT_DATE - ($2 || ' days')::interval)
+        ORDER BY as_of_date DESC
+        LIMIT $2
+      )
+      SELECT h.as_of_date,
+             h.tenor_months,
+             h.price::float
+      FROM metals_curve_history h
+      JOIN d ON d.as_of_date = h.as_of_date
+      WHERE h.metal = $1
+        AND h.tenor_months = ANY($3)
+      ORDER BY h.as_of_date ASC, h.tenor_months ASC;
+    `;
 
-      if (!byDate.has(key)) {
-        byDate.set(key, { date: key, gold: null, silver: null });
-      }
+    const res = await client.query(sql, [metal, days, tenors]);
 
-      const entry = byDate.get(key);
-      const m = r.metal.toLowerCase();
-      if (m === "gold") entry.gold = r.price;
-      if (m === "silver") entry.silver = r.price;
-    }
-
-    const series = Array.from(byDate.values());
-
-    return NextResponse.json({ series });
+    return NextResponse.json({
+      metal,
+      days,
+      tenors,
+      rows: (res.rows || []).map((r) => ({
+        as_of_date: String(r.as_of_date).slice(0, 10),
+        tenor_months: Number(r.tenor_months),
+        price: Number(r.price),
+      })),
+    });
   } catch (err) {
     console.error("Error in /api/metals-history:", err);
     return NextResponse.json(
       {
-        error: "Failed to load metals history",
+        error: "Failed to load metals curve history",
         detail: err?.message || String(err),
       },
       { status: 500 }
