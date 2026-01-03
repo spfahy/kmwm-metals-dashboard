@@ -494,16 +494,20 @@ export default function MetalsPage() {
       byDate.get(d).set(t, p);
     }
 
-    // Keep only complete curves (all tracked tenors present)
-    const datesAll = Array.from(byDate.keys()).sort();
-    const completeDates = [];
-    for (const d of datesAll) {
-      const m = byDate.get(d);
-      const ok = trackedTenorList.every((t) => Number.isFinite(m.get(t)));
-      if (ok) completeDates.push(d);
-    }
+    // Keep curves with at least 4 tenors present (relaxed rule)
+const datesAll = Array.from(byDate.keys()).sort();
+const usableDates = [];
+for (const d of datesAll) {
+  const m = byDate.get(d);
+  const count = trackedTenorList.filter((t) =>
+    Number.isFinite(m.get(t))
+  ).length;
 
-    if (!completeDates.length) {
+  if (count >= 4) usableDates.push(d);
+}
+
+
+    if (!usableDates.length) {
       return {
         chartData: [],
         series: [],
