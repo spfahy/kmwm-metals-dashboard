@@ -921,7 +921,7 @@ export default function MetalsPage() {
 
           <div style={{ height: 360 }}>
             <ResponsiveContainer>
-              <LineChart data={goldHistData} margin={{ top: 10, right: 16, left: 36, bottom: 10 }}>
+             <LineChart data={goldHistData} margin={{ top: 10, right: 16, left: 36, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="tenorMonths" />
                 <YAxis width={80} domain={goldHistYDomain} tickFormatter={fmtAbs} />
@@ -944,15 +944,7 @@ export default function MetalsPage() {
     />
   ))}
 
-{/* Latest curve (bold) */}
-{goldHistLatestKey && (
-  <Line
-    key={goldHistLatestKey}
-    name="Latest"
-    dataKey={goldHistLatestKey}
-    dot={false}
-    stroke="#111827"
- {/* Latest curve (bold) */}
+
 {goldHistLatestKey && (
   <Line
     key={goldHistLatestKey}
