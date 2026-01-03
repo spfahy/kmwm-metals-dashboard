@@ -471,10 +471,18 @@ export default function MetalsPage() {
 
   /* ---------- build Historical Curve Evolution data ---------- */
 
-  const goldCurves = useMemo(() => {
+  const goldHistoryBundle = useMemo(() => {
     const raw = Array.isArray(goldHistory?.rows) ? goldHistory.rows : [];
-    if (!raw.length) return [];
+    if (!raw.length) {
+      return {
+        chartData: [],
+        series: [],
+        latestKey: null,
+        yDomain: ["auto", "auto"],
+      };
+    }
 
+    // Group by date -> (tenor -> price)
     const byDate = new Map();
     for (const r of raw) {
       const d = String(r.as_of_date || "").slice(0, 10);
@@ -486,35 +494,72 @@ export default function MetalsPage() {
       byDate.get(d).set(t, p);
     }
 
-    const dates = Array.from(byDate.keys()).sort();
-    const curves = [];
-
-    for (const d of dates) {
+    // Keep only complete curves (all tracked tenors present)
+    const datesAll = Array.from(byDate.keys()).sort();
+    const completeDates = [];
+    for (const d of datesAll) {
       const m = byDate.get(d);
-      const points = trackedTenorList.map((tenorMonths) => ({
-        tenorMonths,
-        price: m.get(tenorMonths),
-      }));
-
-      const complete = points.every((pt) => Number.isFinite(pt.price));
-      if (!complete) continue;
-
-      curves.push({ date: d, points });
+      const ok = trackedTenorList.every((t) => Number.isFinite(m.get(t)));
+      if (ok) completeDates.push(d);
     }
 
-    return curves;
-  }, [goldHistory]);
+    if (!completeDates.length) {
+      return {
+        chartData: [],
+        series: [],
+        latestKey: null,
+        yDomain: ["auto", "auto"],
+      };
+    }
 
-  const latestGoldCurve = goldCurves.length
-    ? goldCurves[goldCurves.length - 1]
-    : null;
+    // Sample curves so the chart stays readable and fast
+    // (about ~14 curves across 90 days + always include latest)
+    const STEP = Math.max(1, Math.round(completeDates.length / 14));
+    const sampled = [];
+    for (let i = 0; i < completeDates.length; i += STEP) sampled.push(completeDates[i]);
 
-  const opacityForCurveIndex = (i, n) => {
+    const latestDate = completeDates[completeDates.length - 1];
+    if (!sampled.includes(latestDate)) sampled.push(latestDate);
+
+    // Build series definitions + chart table
+    const series = sampled.map((date, idx) => {
+      const key = `d_${date.replaceAll("-", "_")}`; // safe key
+      return { date, key, idx };
+    });
+
+    const chartData = trackedTenorList.map((tenorMonths) => {
+      const row = { tenorMonths };
+      for (const s of series) {
+        const m = byDate.get(s.date);
+        row[s.key] = Number(m.get(tenorMonths));
+      }
+      return row;
+    });
+
+    const latestKey = `d_${latestDate.replaceAll("-", "_")}`;
+
+    // Y-domain across the plotted series (tight but not clipped)
+    const allVals = [];
+    for (const r of chartData) {
+      for (const s of series) allVals.push(r[s.key]);
+    }
+    const yDomain = tightDomain(allVals);
+
+    return { chartData, series, latestKey, yDomain };
+  }, [goldHistory, trackedTenorList]);
+
+  const goldHistData = goldHistoryBundle.chartData;
+  const goldHistSeries = goldHistoryBundle.series;
+  const goldHistLatestKey = goldHistoryBundle.latestKey;
+  const goldHistYDomain = goldHistoryBundle.yDomain;
+
+  const opacityForSeries = (i, n) => {
     if (n <= 1) return 1;
-    const x = i / (n - 1);
-    const o = 0.08 + 0.55 * Math.pow(x, 2.2);
-    return Math.min(Math.max(o, 0.06), 0.65);
+    const x = i / (n - 1); // oldest->newest
+    const o = 0.10 + 0.55 * Math.pow(x, 2.0);
+    return Math.min(Math.max(o, 0.08), 0.70);
   };
+
 
   /* ---------- headline ---------- */
 
@@ -876,38 +921,43 @@ export default function MetalsPage() {
 
           <div style={{ height: 360 }}>
             <ResponsiveContainer>
-              <LineChart margin={{ top: 10, right: 16, left: 36, bottom: 10 }}>
+              <LineChart data={goldHistData} margin={{ top: 10, right: 16, left: 36, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="tenorMonths" />
-                <YAxis width={80} tickFormatter={fmtAbs} />
+                <YAxis width={80} domain={goldHistYDomain} tickFormatter={fmtAbs} />
                 <Tooltip formatter={fmtAbs} />
                 <Legend />
 
-                {goldCurves.slice(0, -1).map((c, i) => (
-                  <Line
-                    key={c.date}
-                    name={i === 0 ? "History" : undefined}
-                    data={c.points}
-                    dataKey="price"
-                    dot={false}
-                    stroke="#6b7280"
-                    strokeWidth={1}
-                    strokeOpacity={opacityForCurveIndex(i, goldCurves.length - 1)}
-                    isAnimationActive={false}
-                  />
-                ))}
+              {/* History (sampled, faded) */}
+{goldHistSeries
+  .filter((s) => s.key !== goldHistLatestKey)
+  .map((s, i, arr) => (
+    <Line
+      key={s.key}
+      name={i === 0 ? "History (sampled)" : undefined}
+      dataKey={s.key}
+      dot={false}
+      stroke="#6b7280"
+      strokeWidth={1}
+      strokeOpacity={opacityForSeries(i, arr.length)}
+      isAnimationActive={false}
+    />
+  ))}
 
-                {latestGoldCurve && (
-                  <Line
-                    key={`${latestGoldCurve.date}-latest`}
-                    name={`Latest (${latestGoldCurve.date})`}
-                    data={latestGoldCurve.points}
-                    dataKey="price"
-                    dot={false}
-                    stroke="#111827"
-                    strokeWidth={3}
-                    strokeOpacity={1}
-                    isAnimationActive={false}
+{/* Latest curve (bold) */}
+{goldHistLatestKey && (
+  <Line
+    key={goldHistLatestKey}
+    name="Latest"
+    dataKey={goldHistLatestKey}
+    dot={false}
+    stroke="#111827"
+    strokeWidth={3}
+    strokeOpacity={1}
+    isAnimationActive={false}
+  />
+)}
+
                   />
                 )}
               </LineChart>
