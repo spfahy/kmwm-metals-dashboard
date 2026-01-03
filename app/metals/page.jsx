@@ -952,14 +952,20 @@ export default function MetalsPage() {
     dataKey={goldHistLatestKey}
     dot={false}
     stroke="#111827"
+ {/* Latest curve (bold) */}
+{goldHistLatestKey && (
+  <Line
+    key={goldHistLatestKey}
+    name="Latest"
+    dataKey={goldHistLatestKey}
+    dot={false}
+    stroke="#111827"
     strokeWidth={3}
     strokeOpacity={1}
     isAnimationActive={false}
   />
 )}
 
-                  />
-                )}
               </LineChart>
             </ResponsiveContainer>
           </div>
